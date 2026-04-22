@@ -76,7 +76,7 @@ public class UsuarioServiceImpl implements UsuarioService {
             if (usuarioActualizado.getApellido() != null) usuario.setApellido(usuarioActualizado.getApellido());
             if (usuarioActualizado.getEmail() != null) usuario.setEmail(usuarioActualizado.getEmail());
             if (usuarioActualizado.getRut() != null) usuario.setRut(usuarioActualizado.getRut());
-            if (usuarioActualizado.getTelefono() != null) usuario.setTelefono(usuarioActualizado.getTelefono());
+            if (usuarioActualizado.getTelefono() != 0) usuario.setTelefono(usuarioActualizado.getTelefono());
             if (usuarioActualizado.getPassword() != null) {
                 try{
                     String hashed = passwordEncoder.encode(usuarioActualizado.getPassword());

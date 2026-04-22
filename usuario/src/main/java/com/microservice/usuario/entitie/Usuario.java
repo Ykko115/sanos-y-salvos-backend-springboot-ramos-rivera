@@ -23,7 +23,7 @@ public class Usuario {
     private String nombre;
     private String apellido;
     private String email;
-    private Integer telefono;
+    private int telefono;
     private String password;
     private Boolean activo = true;
     public enum Rol{
@@ -32,10 +32,7 @@ public class Usuario {
 
     @Enumerated (EnumType.STRING)
     private Rol rol;
-    
-    // Relación con mascotas ahora se gestiona por API y DTOs entre microservicios
-    // private List<MascotaDTO> mascotas; // Solo si quieres exponer la lista recibida por API
-
+   
     @Override
     public String toString(){
         return "Usuario{id=" + id +", rut='" + rut + "', nombre='" + nombre + "', apellido='" + apellido + "', email='" + email + "', telefono='" + telefono + "', password='" + password + "', activo='" + activo + "', rol='" + rol + "}";
