@@ -1,5 +1,6 @@
 package com.microservice.usuario.config;
 
+import com.gateway.apigateway.security.JwtUtil;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -25,5 +26,10 @@ public class SecurityBeansConfig {
 	@Bean
 	public PasswordEncoder passwordEncoder() {
 		return new BCryptPasswordEncoder();
+	}
+
+	@Bean
+	public JwtUtil jwtUtil() {
+		return new JwtUtil();
 	}
 }
