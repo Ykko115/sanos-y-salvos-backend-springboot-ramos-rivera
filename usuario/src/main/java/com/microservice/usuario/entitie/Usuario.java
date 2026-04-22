@@ -26,7 +26,7 @@ public class Usuario {
     private int telefono;
     private String password;
     private Boolean activo = true;
-    private enum Rol{
+    public enum Rol{
         ADMIN, USER
     }
 
