@@ -11,6 +11,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import com.gateway.apigateway.security.JwtUtil;
 import com.microservice.usuario.service.UsuarioService;
 
 import com.microservice.usuario.entitie.Usuario;
@@ -24,6 +25,9 @@ public class UsuarioRestController {
     
     @Autowired
     private UsuarioService usuarioService;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @PostMapping
     public ResponseEntity<?> crear(@RequestBody Usuario usuario){
@@ -49,10 +53,9 @@ public class UsuarioRestController {
             if(nuevoUsuario !=null) nuevoUsuario.setPassword(null);
             Map<String, Object> resp = new HashMap<>();
             if(nuevoUsuario != null && nuevoUsuario.getEmail() != null){
-               /*
-                String token = jwtUtil.generateToken(nuevoUsuario.getEmail());
+                String rol = nuevoUsuario.getRol() == Usuario.Rol.ADMIN ? "ROLE_ADMIN" : "ROLE_USER";
+                String token = jwtUtil.generateToken(nuevoUsuario.getEmail(), List.of(rol));
                 resp.put("token", token);
-                */
             }
             resp.put("user", nuevoUsuario);
             return ResponseEntity.ok(resp);            
