@@ -26,6 +26,9 @@ public class UsuarioServiceImpl implements UsuarioService {
         if(usuario.getRut() != null && usuarioRepository.existsByRut(usuario.getRut())) {
             throw new IllegalArgumentException("el Rut ya ah sido registrado");
         }
+        if (usuario.getActivo() == null) {
+            usuario.setActivo(true);
+        }
         if(usuario.getPassword() != null && !usuario.getPassword().isBlank()){
             try {
                 String hashed = passwordEncoder.encode(usuario.getPassword());

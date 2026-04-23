@@ -49,15 +49,32 @@ public class UsuarioRestController {
         }
 
         try {
+            // Generate token before persisting so a token error never leaves a half-successful create.
+            String token = null;
+            if (usuario.getEmail() != null) {
+                String rol = usuario.getRol() == Usuario.Rol.ADMIN ? "ROLE_ADMIN" : "ROLE_USER";
+                token = jwtUtil.generateToken(usuario.getEmail(), List.of(rol));
+            }
+
             Usuario nuevoUsuario = usuarioService.crear(usuario);
-            if(nuevoUsuario !=null) nuevoUsuario.setPassword(null);
             Map<String, Object> resp = new HashMap<>();
-            if(nuevoUsuario != null && nuevoUsuario.getEmail() != null){
-                String rol = nuevoUsuario.getRol() == Usuario.Rol.ADMIN ? "ROLE_ADMIN" : "ROLE_USER";
-                String token = jwtUtil.generateToken(nuevoUsuario.getEmail(), List.of(rol));
+            if(token != null){
                 resp.put("token", token);
             }
-            resp.put("user", nuevoUsuario);
+            if (nuevoUsuario != null) {
+                Map<String, Object> userResp = new HashMap<>();
+                userResp.put("id", nuevoUsuario.getId());
+                userResp.put("rut", nuevoUsuario.getRut());
+                userResp.put("nombre", nuevoUsuario.getNombre());
+                userResp.put("apellido", nuevoUsuario.getApellido());
+                userResp.put("email", nuevoUsuario.getEmail());
+                userResp.put("telefono", nuevoUsuario.getTelefono());
+                userResp.put("activo", nuevoUsuario.getActivo());
+                userResp.put("rol", nuevoUsuario.getRol());
+                resp.put("user", userResp);
+            } else {
+                resp.put("user", null);
+            }
             return ResponseEntity.ok(resp);            
         }catch (IllegalArgumentException ex) {
             Map<String, String> err = new HashMap<>();
