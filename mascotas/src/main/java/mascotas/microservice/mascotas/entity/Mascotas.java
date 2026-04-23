@@ -1,6 +1,8 @@
 package mascotas.microservice.mascotas.entity;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -18,16 +20,26 @@ public class Mascotas {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String nombre;
-    private String especie;
     private String raza;
     private int edad;
     private String descripcion;
-    private Boolean activo = true;
+    public enum Estado {
+        ENCONTRADO, PERDIDO
+    }
+    public enum Especie{
+        PERRO, GATO, HURON, ROEDOR, OTRO
+    }
+
+    @Enumerated (EnumType.STRING)
+    private Especie especie;
+
+    @Enumerated (EnumType.STRING)
+    private Estado estado;
 
 
     @Override
     public String toString() {
-        return "Mascotas{id=" + id + ", nombre='" + nombre + "', especie='" + especie + "', raza='" + raza + "', edad=" + edad + ", descripcion='" + descripcion + "', activo=" + activo + "}";
+        return "Mascotas{id=" + id + ", nombre='" + nombre + "', especie='" + especie + "', raza='" + raza + "', edad=" + edad + ", descripcion='" + descripcion + "', estado=" + estado + "}";
     }
 
 }
