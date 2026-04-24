@@ -8,6 +8,7 @@ public interface UsuarioService {
     boolean existsByEmail(String email);
     boolean existsByRut(String rut);
     Usuario ObtenerPorId(Long id);
+    Usuario obtenerUsuarioConMascotas(Long id);
     List<Usuario> listarTodos();
     void eliminar(Long id);
     Usuario actualizar(Long id, Usuario usuarioActualizado);

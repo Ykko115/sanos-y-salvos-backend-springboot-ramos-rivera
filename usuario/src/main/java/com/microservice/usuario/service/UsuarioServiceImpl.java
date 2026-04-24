@@ -7,6 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.microservice.usuario.entitie.Usuario;
+import com.microservice.usuario.entitie.dto.Mascotas;
 import com.microservice.usuario.repository.UsuarioRepository;
 
 @Service
@@ -17,6 +18,9 @@ public class UsuarioServiceImpl implements UsuarioService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private MascotasClientService mascotasClientService;
 
     @Override
     public Usuario crear(Usuario usuario){
@@ -57,6 +61,14 @@ public class UsuarioServiceImpl implements UsuarioService {
         return usuarioRepository.findById(id)
         .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
     } 
+
+    @Override
+    public Usuario obtenerUsuarioConMascotas(Long id) {
+        Usuario usuario = ObtenerPorId(id);
+        List<Mascotas> mascotas = mascotasClientService.obtenerMascotasPorUsuarioId(id);
+        usuario.setMascotas(mascotas);
+        return usuario;
+    }
 
     @Override
     public List<Usuario> listarTodos(){

@@ -16,4 +16,6 @@ public interface MascotasRepository extends JpaRepository<Mascotas, Long> {
 
     List<Mascotas> findByRaza(String raza);
 
+    List<Mascotas> findByUsuarioId(Long usuarioId);
+
 }

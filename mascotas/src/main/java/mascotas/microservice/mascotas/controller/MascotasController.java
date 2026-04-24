@@ -95,4 +95,14 @@ public class MascotasController {
         }
     }
 
+    @GetMapping("/usuario/{usuarioId}")
+    public ResponseEntity<List<Mascotas>> obtenerMascotasPorUsuarioId(@PathVariable Long usuarioId) {
+        try {
+            List<Mascotas> mascotas = mascotasService.obtenerMascotasPorUsuarioId(usuarioId);
+            return new ResponseEntity<>(mascotas, HttpStatus.OK);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
 }

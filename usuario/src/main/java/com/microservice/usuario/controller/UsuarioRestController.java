@@ -85,8 +85,22 @@ public class UsuarioRestController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Usuario> ObtenerPorId(@PathVariable Long id){
-        Usuario existe = usuarioService.ObtenerPorId(id);
-        return ResponseEntity.ok(existe);
+        try {
+            Usuario existe = usuarioService.obtenerUsuarioConMascotas(id);
+            return ResponseEntity.ok(existe);
+        } catch (RuntimeException ex) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/{id}/mascotas")
+    public ResponseEntity<Usuario> obtenerUsuarioConMascotas(@PathVariable Long id) {
+        try {
+            Usuario respuesta = usuarioService.obtenerUsuarioConMascotas(id);
+            return ResponseEntity.ok(respuesta);
+        } catch (RuntimeException ex) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @GetMapping

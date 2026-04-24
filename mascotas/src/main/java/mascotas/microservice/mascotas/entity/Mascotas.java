@@ -23,6 +23,7 @@ public class Mascotas {
     private String raza;
     private int edad;
     private String descripcion;
+    private Long usuarioId;
     public enum Estado {
         ENCONTRADO, PERDIDO
     }
@@ -39,7 +40,7 @@ public class Mascotas {
 
     @Override
     public String toString() {
-        return "Mascotas{id=" + id + ", nombre='" + nombre + "', especie='" + especie + "', raza='" + raza + "', edad=" + edad + ", descripcion='" + descripcion + "', estado=" + estado + "}";
+        return "Mascotas{id=" + id + ", nombre='" + nombre + "', especie='" + especie + "', raza='" + raza + "', edad=" + edad + ", descripcion='" + descripcion + "', estado=" + estado + ", usuarioId=" + usuarioId + "}";
     }
 
 }
