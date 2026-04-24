@@ -18,6 +18,17 @@
             "mainClass": "com.gateway.apigateway.ApigatewayApplication",
             "projectName": "apigateway",
             "args": "",
+            "envFile": "${workspaceFolder}/.env",
+            "vmArgs": " -Dcom.sun.management.jmxremote"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-MascotasApplication<mascotas>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "mascotas.microservice.mascotas.MascotasApplication",
+            "projectName": "mascotas",
+            "args": "",
             "envFile": "${workspaceFolder}/.env"
         }
     ]

@@ -11,6 +11,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import com.gateway.apigateway.security.JwtUtil;
 import com.microservice.usuario.service.UsuarioService;
 
 import com.microservice.usuario.entitie.Usuario;
@@ -24,6 +25,9 @@ public class UsuarioRestController {
     
     @Autowired
     private UsuarioService usuarioService;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @PostMapping
     public ResponseEntity<?> crear(@RequestBody Usuario usuario){
@@ -45,16 +49,32 @@ public class UsuarioRestController {
         }
 
         try {
-            Usuario nuevoUsuario = usuarioService.crear(usuario);
-            if(nuevoUsuario !=null) nuevoUsuario.setPassword(null);
-            Map<String, Object> resp = new HashMap<>();
-            if(nuevoUsuario != null && nuevoUsuario.getEmail() != null){
-               /*
-                String token = jwtUtil.generateToken(nuevoUsuario.getEmail());
-                resp.put("token", token);
-                */
+            // Generate token before persisting so a token error never leaves a half-successful create.
+            String token = null;
+            if (usuario.getEmail() != null) {
+                String rol = usuario.getRol() == Usuario.Rol.ADMIN ? "ROLE_ADMIN" : "ROLE_USER";
+                token = jwtUtil.generateToken(usuario.getEmail(), List.of(rol));
             }
-            resp.put("user", nuevoUsuario);
+
+            Usuario nuevoUsuario = usuarioService.crear(usuario);
+            Map<String, Object> resp = new HashMap<>();
+            if(token != null){
+                resp.put("token", token);
+            }
+            if (nuevoUsuario != null) {
+                Map<String, Object> userResp = new HashMap<>();
+                userResp.put("id", nuevoUsuario.getId());
+                userResp.put("rut", nuevoUsuario.getRut());
+                userResp.put("nombre", nuevoUsuario.getNombre());
+                userResp.put("apellido", nuevoUsuario.getApellido());
+                userResp.put("email", nuevoUsuario.getEmail());
+                userResp.put("telefono", nuevoUsuario.getTelefono());
+                userResp.put("activo", nuevoUsuario.getActivo());
+                userResp.put("rol", nuevoUsuario.getRol());
+                resp.put("user", userResp);
+            } else {
+                resp.put("user", null);
+            }
             return ResponseEntity.ok(resp);            
         }catch (IllegalArgumentException ex) {
             Map<String, String> err = new HashMap<>();
@@ -65,8 +85,22 @@ public class UsuarioRestController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Usuario> ObtenerPorId(@PathVariable Long id){
-        Usuario existe = usuarioService.ObtenerPorId(id);
-        return ResponseEntity.ok(existe);
+        try {
+            Usuario existe = usuarioService.obtenerUsuarioConMascotas(id);
+            return ResponseEntity.ok(existe);
+        } catch (RuntimeException ex) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/{id}/mascotas")
+    public ResponseEntity<Usuario> obtenerUsuarioConMascotas(@PathVariable Long id) {
+        try {
+            Usuario respuesta = usuarioService.obtenerUsuarioConMascotas(id);
+            return ResponseEntity.ok(respuesta);
+        } catch (RuntimeException ex) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @GetMapping

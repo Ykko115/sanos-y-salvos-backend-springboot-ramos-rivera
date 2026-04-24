@@ -7,6 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.microservice.usuario.entitie.Usuario;
+import com.microservice.usuario.entitie.dto.Mascotas;
 import com.microservice.usuario.repository.UsuarioRepository;
 
 @Service
@@ -18,6 +19,9 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private MascotasClientService mascotasClientService;
+
     @Override
     public Usuario crear(Usuario usuario){
         if(usuario.getEmail() != null && usuarioRepository.existsByEmail(usuario.getEmail())){
@@ -25,6 +29,9 @@ public class UsuarioServiceImpl implements UsuarioService {
         }
         if(usuario.getRut() != null && usuarioRepository.existsByRut(usuario.getRut())) {
             throw new IllegalArgumentException("el Rut ya ah sido registrado");
+        }
+        if (usuario.getActivo() == null) {
+            usuario.setActivo(true);
         }
         if(usuario.getPassword() != null && !usuario.getPassword().isBlank()){
             try {
@@ -54,6 +61,14 @@ public class UsuarioServiceImpl implements UsuarioService {
         return usuarioRepository.findById(id)
         .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
     } 
+
+    @Override
+    public Usuario obtenerUsuarioConMascotas(Long id) {
+        Usuario usuario = ObtenerPorId(id);
+        List<Mascotas> mascotas = mascotasClientService.obtenerMascotasPorUsuarioId(id);
+        usuario.setMascotas(mascotas);
+        return usuario;
+    }
 
     @Override
     public List<Usuario> listarTodos(){

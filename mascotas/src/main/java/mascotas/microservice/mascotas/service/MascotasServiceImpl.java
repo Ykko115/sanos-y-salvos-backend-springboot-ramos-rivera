@@ -45,6 +45,7 @@ public class MascotasServiceImpl implements MascotasService {
             mascotaAActualizar.setRaza(mascota.getRaza());
             mascotaAActualizar.setEdad(mascota.getEdad());
             mascotaAActualizar.setDescripcion(mascota.getDescripcion());
+            mascotaAActualizar.setUsuarioId(mascota.getUsuarioId());
 
             return mascotasRepository.save(mascotaAActualizar);
         }
@@ -77,6 +78,12 @@ public class MascotasServiceImpl implements MascotasService {
     @Transactional(readOnly = true)
     public List<Mascotas> obtenerMascotasPorRaza(String raza) {
         return mascotasRepository.findByRaza(raza);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Mascotas> obtenerMascotasPorUsuarioId(Long usuarioId) {
+        return mascotasRepository.findByUsuarioId(usuarioId);
     }
 
 }

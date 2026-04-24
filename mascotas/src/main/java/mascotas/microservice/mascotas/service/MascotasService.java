@@ -15,5 +15,6 @@ public interface MascotasService {
     Optional<Mascotas> obtenerMascotaPorNombre(String nombre);
     List<Mascotas> obtenerMascotasPorEspecie(String especie);
     List<Mascotas> obtenerMascotasPorRaza(String raza);
+    List<Mascotas> obtenerMascotasPorUsuarioId(Long usuarioId);
 
 }
