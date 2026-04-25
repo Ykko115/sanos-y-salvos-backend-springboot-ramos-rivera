@@ -29,6 +29,17 @@
             "mainClass": "mascotas.microservice.mascotas.MascotasApplication",
             "projectName": "mascotas",
             "args": "",
+            "envFile": "${workspaceFolder}/.env",
+            "vmArgs": " -Dcom.sun.management.jmxremote"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-ReportesApplication<reportes>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.microservice.reportes.ReportesApplication",
+            "projectName": "reportes",
+            "args": "",
             "envFile": "${workspaceFolder}/.env"
         }
     ]
