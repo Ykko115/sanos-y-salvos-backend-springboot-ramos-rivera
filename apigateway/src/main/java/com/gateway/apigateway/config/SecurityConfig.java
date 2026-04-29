@@ -29,7 +29,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/usuario/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/usuario").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/usuario/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/mascotas/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/mascotas/**").permitAll()
                 .requestMatchers(HttpMethod.GET,"/api/reportes/**").permitAll()
