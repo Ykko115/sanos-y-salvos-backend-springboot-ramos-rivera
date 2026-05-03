@@ -99,10 +99,16 @@ public class UsuarioRestController {
             }
         }
 
+
+        // Si el usuario autenticado NO es admin, forzar rol USER
         if(!callerIsAdmin){
             usuario.setRol(Usuario.Rol.USER);
-        } else{
-            if (usuario.getRol() == null) usuario.setRol(Usuario.Rol.USER);
+        } else {
+            // Si es admin y no se especifica rol, asignar USER por defecto
+            if (usuario.getRol() == null) {
+                usuario.setRol(Usuario.Rol.USER);
+            }
+            // Si es admin y se especifica rol, se respeta el rol enviado
         }
 
         try {
