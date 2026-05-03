@@ -9,12 +9,19 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.gateway.apigateway.security.JwtUtil;
-import com.microservice.usuario.service.UsuarioService;
-
 import com.microservice.usuario.entitie.Usuario;
+import com.microservice.usuario.service.UsuarioService;
 
 
 
@@ -29,6 +36,56 @@ public class UsuarioRestController {
     @Autowired
     private JwtUtil jwtUtil;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+        // DTO para login
+        public static class LoginRequest {
+            private String email;
+            private String password;
+
+            public String getEmail() { return email; }
+            public void setEmail(String email) { this.email = email; }
+            public String getPassword() { return password; }
+            public void setPassword(String password) { this.password = password; }
+        }
+
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
+        try {
+            Usuario usuario = usuarioService.buscarPorEmail(loginRequest.getEmail());
+            if (usuario == null) {
+                Map<String, String> err = new HashMap<>();
+                err.put("error", "Usuario no encontrado");
+                return ResponseEntity.status(401).body(err);
+            }
+            // Validar password usando BCrypt
+            if (!passwordEncoder.matches(loginRequest.getPassword(), usuario.getPassword())) {
+                Map<String, String> err = new HashMap<>();
+                err.put("error", "Credenciales inválidas");
+                return ResponseEntity.status(401).body(err);
+            }
+            String rol = usuario.getRol() == Usuario.Rol.ADMIN ? "ROLE_ADMIN" : "ROLE_USER";
+            String token = jwtUtil.generateToken(usuario.getEmail(), List.of(rol));
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("token", token);
+            Map<String, Object> userResp = new HashMap<>();
+            userResp.put("id", usuario.getId());
+            userResp.put("rut", usuario.getRut());
+            userResp.put("nombre", usuario.getNombre());
+            userResp.put("apellido", usuario.getApellido());
+            userResp.put("email", usuario.getEmail());
+            userResp.put("telefono", usuario.getTelefono());
+            userResp.put("activo", usuario.getActivo());
+            userResp.put("rol", usuario.getRol());
+            resp.put("user", userResp);
+            return ResponseEntity.ok(resp);
+        } catch (Exception ex) {
+            Map<String, String> err = new HashMap<>();
+            err.put("error", "Error en el login");
+            return ResponseEntity.status(500).body(err);
+        }
+    }
     @PostMapping
     public ResponseEntity<?> crear(@RequestBody Usuario usuario){
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
