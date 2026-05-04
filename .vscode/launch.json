@@ -1,0 +1,46 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-UsuarioApplication<usuario>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.microservice.usuario.UsuarioApplication",
+            "projectName": "usuario",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-ApigatewayApplication<apigateway>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.gateway.apigateway.ApigatewayApplication",
+            "projectName": "apigateway",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env",
+            "vmArgs": " -Dcom.sun.management.jmxremote"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-MascotasApplication<mascotas>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "mascotas.microservice.mascotas.MascotasApplication",
+            "projectName": "mascotas",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env",
+            "vmArgs": " -Dcom.sun.management.jmxremote"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-ReportesApplication<reportes>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.microservice.reportes.ReportesApplication",
+            "projectName": "reportes",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
