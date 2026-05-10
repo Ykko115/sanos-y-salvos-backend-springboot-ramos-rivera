@@ -21,7 +21,7 @@ public class Mascotas {
     private Long id;
     private String nombre;
     private String raza;
-    private int edad;
+    private Integer edad;
     private String descripcion;
     private Long usuarioId;
     public enum Estado {

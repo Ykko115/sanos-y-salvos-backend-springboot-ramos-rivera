@@ -31,10 +31,16 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/usuario/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/usuario/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/usuario/").permitAll()
+                .requestMatchers(HttpMethod.PUT, "/api/usuario/**").permitAll()
+                .requestMatchers(HttpMethod.DELETE, "/api/usuario/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/mascotas/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/mascotas/**").permitAll()
+                .requestMatchers(HttpMethod.PUT, "/api/mascotas/**").permitAll()
+                .requestMatchers(HttpMethod.DELETE, "/api/mascotas/**").permitAll()
                 .requestMatchers(HttpMethod.GET,"/api/reportes/**").permitAll()
                 .requestMatchers(HttpMethod.POST,"/api/reportes/**").permitAll()
+                .requestMatchers(HttpMethod.PUT, "/api/reportes/**").permitAll()
+                .requestMatchers(HttpMethod.DELETE, "/api/reportes/**").permitAll()
                 .anyRequest().authenticated())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
