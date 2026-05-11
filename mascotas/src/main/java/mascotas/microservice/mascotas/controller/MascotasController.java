@@ -2,10 +2,15 @@ package mascotas.microservice.mascotas.controller;
 
 import mascotas.microservice.mascotas.entity.Mascotas;
 import mascotas.microservice.mascotas.service.MascotasService;
+import mascotas.microservice.mascotas.dto.UsuarioDTO;
+import org.springframework.beans.factory.annotation.Value;
+import java.util.Arrays;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpHeaders;
 
 import java.util.List;
 import java.util.Optional;
@@ -16,6 +21,33 @@ public class MascotasController {
 
     @Autowired
     private MascotasService mascotasService;
+
+    @Autowired
+    private WebClient.Builder webClientBuilder;
+
+    @Value("${usuario.service.urls:http://localhost:8080,http://localhost:8081}")
+    private String usuarioServiceUrls;
+
+    @Value("${internal.jwt:}")
+    private String internalJwt;
+
+    // ✅ Método extraído correctamente fuera de cualquier lambda
+    private UsuarioDTO obtenerUsuarioDesdeCualquierUrl(Long usuarioId) {
+        for (String baseUrl : Arrays.asList(usuarioServiceUrls.split(","))) {
+            try {
+                WebClient.RequestHeadersSpec<?> request = webClientBuilder.build()
+                        .get()
+                        .uri(baseUrl.trim() + "/api/usuario/" + usuarioId + "?plain=true");
+                if (internalJwt != null && !internalJwt.isBlank()) {
+                    request = request.header(HttpHeaders.AUTHORIZATION, internalJwt);
+                }
+                return request.retrieve()
+                        .bodyToMono(UsuarioDTO.class)
+                        .block();
+            } catch (Exception ignored) {}
+        }
+        return null;
+    }
 
     @PostMapping
     public ResponseEntity<Mascotas> crearMascota(@RequestBody Mascotas mascota) {
@@ -28,20 +60,49 @@ public class MascotasController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Mascotas> obtenerMascotaPorId(@PathVariable Long id) {
-        Optional<Mascotas> mascota = mascotasService.obtenerMascotaPorId(id);
-        return mascota.map(value -> new ResponseEntity<>(value, HttpStatus.OK))
-                .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
+    public ResponseEntity<?> obtenerMascotaPorId(@PathVariable Long id) {
+        Optional<Mascotas> mascotaOpt = mascotasService.obtenerMascotaPorId(id);
+        if (mascotaOpt.isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+        Mascotas mascota = mascotaOpt.get();
+        UsuarioDTO usuario = null;
+        if (mascota.getUsuarioId() != null) {
+            usuario = obtenerUsuarioDesdeCualquierUrl(mascota.getUsuarioId());
+        }
+        return ResponseEntity.ok(new MascotaConUsuarioResponse(mascota, usuario));
     }
 
     @GetMapping
-    public ResponseEntity<List<Mascotas>> obtenerTodasLasMascotas() {
+    public ResponseEntity<?> obtenerTodasLasMascotas() {
         try {
             List<Mascotas> mascotas = mascotasService.obtenerTodasLasMascotas();
-            return new ResponseEntity<>(mascotas, HttpStatus.OK);
+            // ✅ Lambda limpia, sin método adentro
+            List<MascotaConUsuarioResponse> result = mascotas.stream().map(mascota -> {
+                UsuarioDTO usuario = null;
+                if (mascota.getUsuarioId() != null) {
+                    usuario = obtenerUsuarioDesdeCualquierUrl(mascota.getUsuarioId());
+                }
+                return new MascotaConUsuarioResponse(mascota, usuario);
+            }).toList();
+            return new ResponseEntity<>(result, HttpStatus.OK);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    // DTO de respuesta enriquecida
+    public static class MascotaConUsuarioResponse {
+        private final Mascotas mascota;
+        private final UsuarioDTO usuario;
+
+        public MascotaConUsuarioResponse(Mascotas mascota, UsuarioDTO usuario) {
+            this.mascota = mascota;
+            this.usuario = usuario;
+        }
+
+        public Mascotas getMascota() { return mascota; }
+        public UsuarioDTO getUsuario() { return usuario; }
     }
 
     @PutMapping("/{id}")
@@ -104,5 +165,4 @@ public class MascotasController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
-
 }
