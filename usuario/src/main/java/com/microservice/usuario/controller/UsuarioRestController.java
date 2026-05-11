@@ -22,6 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 import com.gateway.apigateway.security.JwtUtil;
 import com.microservice.usuario.entitie.Usuario;
 import com.microservice.usuario.service.UsuarioService;
+import com.microservice.usuario.entitie.dto.MascotaDTO;
+import com.microservice.usuario.entitie.dto.UsuarioDTO;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.reactive.function.client.WebClient;
 
 
 
@@ -38,6 +43,12 @@ public class UsuarioRestController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private WebClient.Builder webClientBuilder;
+
+    @Value("${mascotas.service.url:http://localhost:8082}")
+    private String mascotasServiceUrl;
 
         // DTO para login
         public static class LoginRequest {
@@ -147,10 +158,33 @@ public class UsuarioRestController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Usuario> ObtenerPorId(@PathVariable Long id){
+    public ResponseEntity<?> ObtenerPorId(@PathVariable Long id, @RequestParam(value = "plain", required = false) Boolean plain){
         try {
-            Usuario existe = usuarioService.obtenerUsuarioConMascotas(id);
-            return ResponseEntity.ok(existe);
+            Usuario existe = usuarioService.ObtenerPorId(id);
+            if (existe == null) return ResponseEntity.notFound().build();
+            // Si plain=true, devolver solo los datos planos del usuario (para WebClient de mascotas)
+            if (plain != null && plain) {
+                return ResponseEntity.ok(new UsuarioDTO(
+                    existe.getId(),
+                    existe.getRut(),
+                    existe.getNombre(),
+                    existe.getApellido(),
+                    existe.getEmail(),
+                    existe.getTelefono(),
+                    existe.getActivo(),
+                    existe.getRol() != null ? existe.getRol().name() : null
+                ));
+            }
+            MascotaDTO[] mascotas = null;
+            try {
+                mascotas = webClientBuilder.build()
+                        .get()
+                        .uri(mascotasServiceUrl + "/api/mascotas/usuario/" + id)
+                        .retrieve()
+                        .bodyToMono(MascotaDTO[].class)
+                        .block();
+            } catch (Exception ignored) {}
+            return ResponseEntity.ok(new UsuarioConMascotasResponse(existe, mascotas));
         } catch (RuntimeException ex) {
             return ResponseEntity.notFound().build();
         }
@@ -167,9 +201,35 @@ public class UsuarioRestController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Usuario>> listarTodos(){
+    public ResponseEntity<?> listarTodos(){
         List<Usuario> usuarios = usuarioService.listarTodos();
-        return ResponseEntity.ok(usuarios);
+        List<UsuarioConMascotasResponse> result = usuarios.stream().map(usuario -> {
+            MascotaDTO[] mascotas = null;
+            try {
+                mascotas = webClientBuilder.build()
+                        .get()
+                        .uri(mascotasServiceUrl + "/api/mascotas/usuario/" + usuario.getId())
+                        .retrieve()
+                        .bodyToMono(MascotaDTO[].class)
+                        .block();
+            } catch (Exception ignored) {}
+            return new UsuarioConMascotasResponse(usuario, mascotas);
+        }).toList();
+        return ResponseEntity.ok(result);
+    }
+
+    // DTO de respuesta enriquecida
+    public static class UsuarioConMascotasResponse {
+        private Usuario usuario;
+        private MascotaDTO[] mascotas;
+
+        public UsuarioConMascotasResponse(Usuario usuario, MascotaDTO[] mascotas) {
+            this.usuario = usuario;
+            this.mascotas = mascotas;
+        }
+
+        public Usuario getUsuario() { return usuario; }
+        public MascotaDTO[] getMascotas() { return mascotas; }
     }
 
     @DeleteMapping("/{id}")
