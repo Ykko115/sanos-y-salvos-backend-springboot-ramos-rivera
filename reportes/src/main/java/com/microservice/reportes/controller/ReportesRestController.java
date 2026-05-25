@@ -2,6 +2,8 @@ package com.microservice.reportes.controller;
 
 import com.microservice.reportes.entity.Reportes;
 import com.microservice.reportes.service.ReportesService;
+import com.microservice.reportes.exception.MascotaNoEncontradaException;
+import com.microservice.reportes.exception.UsuarioNoEncontradoException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,9 +21,11 @@ public class ReportesRestController {
 
     @PostMapping
     public ResponseEntity<Reportes> crearReporte(@RequestBody Reportes reportes) {
-        try{
+        try {
             Reportes reporteCreado = reporteService.creaReporte(reportes);
             return new ResponseEntity<>(reporteCreado, HttpStatus.CREATED);
+        } catch (MascotaNoEncontradaException | UsuarioNoEncontradoException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
