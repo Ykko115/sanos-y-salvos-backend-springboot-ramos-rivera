@@ -5,15 +5,15 @@ import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import com.microservice.reportes.entity.Reportes;
-import com.microservice.reportes.repository.ReportesRepository;
 import com.microservice.reportes.exception.MascotaNoEncontradaException;
 import com.microservice.reportes.exception.UsuarioNoEncontradoException;
+import com.microservice.reportes.repository.ReportesRepository;
 
 @Service
 @Transactional
@@ -26,42 +26,47 @@ public class ReportesServiceImpl  implements ReportesService{
     @Autowired
     private WebClient.Builder webClientBuilder;
 
-    @Value("${servicio.mascotas.url:http://localhost:8082}")
+    @Value("${mascotas.service.url}")
     private String mascotasServiceUrl;
 
-    @Value("${servicio.usuarios.url:http://localhost:8083}")
+    @Value("${usuario.service.urls}")
     private String usuariosServiceUrl;
 
     @Override
+    public Reportes creaReporte(Reportes reportes) {
 
-    public Reportes creaReporte(Reportes reportes){
-        // Validar existencia de la mascota
-        try {
-            webClientBuilder.build()
-                .get()
-                .uri(mascotasServiceUrl + "/api/mascotas/" + reportes.getMascotaId())
-                .retrieve()
-                .bodyToMono(Object.class)
-                .block();
-        } catch (WebClientResponseException.NotFound e) {
-            throw new MascotaNoEncontradaException("La mascota con id " + reportes.getMascotaId() + " no existe");
-        } catch (WebClientResponseException e) {
-            throw new RuntimeException("Error al consultar el servicio de mascotas: " + e.getMessage());
+        // Solo validar mascota si viene un mascotaId (reporte autenticado)
+        if (reportes.getMascotaId() != null) {
+            try {
+                webClientBuilder.build()
+                        .get()
+                        .uri(mascotasServiceUrl + "/api/mascotas/" + reportes.getMascotaId())
+                        .retrieve()
+                        .bodyToMono(Object.class)
+                        .block();
+            } catch (WebClientResponseException.NotFound e) {
+                throw new MascotaNoEncontradaException("La mascota con id " + reportes.getMascotaId() + " no existe");
+            } catch (WebClientResponseException e) {
+                throw new RuntimeException("Error al consultar el servicio de mascotas: " + e.getMessage());
+            }
         }
 
-        // Validar existencia del usuario
-        try {
-            webClientBuilder.build()
-                .get()
-                .uri(usuariosServiceUrl + "/api/usuarios/" + reportes.getUsuarioId())
-                .retrieve()
-                .bodyToMono(Object.class)
-                .block();
-        } catch (WebClientResponseException.NotFound e) {
-            throw new UsuarioNoEncontradoException("El usuario con id " + reportes.getUsuarioId() + " no existe");
-        } catch (WebClientResponseException e) {
-            throw new RuntimeException("Error al consultar el servicio de usuarios: " + e.getMessage());
+        // Solo validar usuario si viene un usuarioId
+        if (reportes.getUsuarioId() != null) {
+            try {
+                webClientBuilder.build()
+                        .get()
+                        .uri(usuariosServiceUrl + "/api/usuarios/" + reportes.getUsuarioId())
+                        .retrieve()
+                        .bodyToMono(Object.class)
+                        .block();
+            } catch (WebClientResponseException.NotFound e) {
+                throw new UsuarioNoEncontradoException("El usuario con id " + reportes.getUsuarioId() + " no existe");
+            } catch (WebClientResponseException e) {
+                throw new RuntimeException("Error al consultar el servicio de usuarios: " + e.getMessage());
+            }
         }
+
         return reportesRepository.save(reportes);
     }
 
