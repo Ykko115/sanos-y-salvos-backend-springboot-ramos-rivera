@@ -3,6 +3,8 @@ package com.microservice.reportes.service;
 import java.util.List;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,8 @@ import com.microservice.reportes.repository.ReportesRepository;
 @Service
 @Transactional
 public class ReportesServiceImpl  implements ReportesService{
+
+    private static final Logger logger = LoggerFactory.getLogger(ReportesServiceImpl.class);
 
 
     @Autowired
@@ -35,8 +39,11 @@ public class ReportesServiceImpl  implements ReportesService{
     @Override
     public Reportes creaReporte(Reportes reportes) {
 
+        logger.info("Iniciando creación de reporte: {}", reportes);
+
         // Solo validar mascota si viene un mascotaId (reporte autenticado)
         if (reportes.getMascotaId() != null) {
+            logger.info("Validando existencia de mascota con id: {}", reportes.getMascotaId());
             try {
                 webClientBuilder.build()
                         .get()
@@ -44,29 +51,37 @@ public class ReportesServiceImpl  implements ReportesService{
                         .retrieve()
                         .bodyToMono(Object.class)
                         .block();
+                logger.info("Mascota encontrada correctamente");
             } catch (WebClientResponseException.NotFound e) {
+                logger.warn("Mascota no encontrada: {}", reportes.getMascotaId());
                 throw new MascotaNoEncontradaException("La mascota con id " + reportes.getMascotaId() + " no existe");
             } catch (WebClientResponseException e) {
+                logger.error("Error al consultar el servicio de mascotas: {}", e.getMessage());
                 throw new RuntimeException("Error al consultar el servicio de mascotas: " + e.getMessage());
             }
         }
 
         // Solo validar usuario si viene un usuarioId
         if (reportes.getUsuarioId() != null) {
+            logger.info("Validando existencia de usuario con id: {}", reportes.getUsuarioId());
             try {
                 webClientBuilder.build()
                         .get()
-                        .uri(usuariosServiceUrl + "/api/usuarios/" + reportes.getUsuarioId())
+                        .uri(usuariosServiceUrl + "/api/usuario/" + reportes.getUsuarioId())
                         .retrieve()
                         .bodyToMono(Object.class)
                         .block();
+                logger.info("Usuario encontrado correctamente");
             } catch (WebClientResponseException.NotFound e) {
+                logger.warn("Usuario no encontrado: {}", reportes.getUsuarioId());
                 throw new UsuarioNoEncontradoException("El usuario con id " + reportes.getUsuarioId() + " no existe");
             } catch (WebClientResponseException e) {
+                logger.error("Error al consultar el servicio de usuarios: {}", e.getMessage());
                 throw new RuntimeException("Error al consultar el servicio de usuarios: " + e.getMessage());
             }
         }
 
+        logger.info("Guardando reporte en base de datos");
         return reportesRepository.save(reportes);
     }
 
