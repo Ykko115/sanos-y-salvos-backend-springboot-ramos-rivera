@@ -3,22 +3,85 @@ package com.microservice.reportes.service;
 import java.util.List;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import com.microservice.reportes.entity.Reportes;
+import com.microservice.reportes.exception.MascotaNoEncontradaException;
+import com.microservice.reportes.exception.UsuarioNoEncontradoException;
 import com.microservice.reportes.repository.ReportesRepository;
 
 @Service
 @Transactional
 public class ReportesServiceImpl  implements ReportesService{
 
+    private static final Logger logger = LoggerFactory.getLogger(ReportesServiceImpl.class);
+
+
     @Autowired
     private ReportesRepository reportesRepository;
 
+    @Autowired
+    private WebClient.Builder webClientBuilder;
+
+    @Value("${mascotas.service.url}")
+    private String mascotasServiceUrl;
+
+    @Value("${usuario.service.urls}")
+    private String usuariosServiceUrl;
+
     @Override
-    public Reportes creaReporte(Reportes reportes){
+    public Reportes creaReporte(Reportes reportes) {
+
+        logger.info("Iniciando creación de reporte: {}", reportes);
+
+        // Solo validar mascota si viene un mascotaId (reporte autenticado)
+        if (reportes.getMascotaId() != null) {
+            logger.info("Validando existencia de mascota con id: {}", reportes.getMascotaId());
+            try {
+                webClientBuilder.build()
+                        .get()
+                        .uri(mascotasServiceUrl + "/api/mascotas/" + reportes.getMascotaId())
+                        .retrieve()
+                        .bodyToMono(Object.class)
+                        .block();
+                logger.info("Mascota encontrada correctamente");
+            } catch (WebClientResponseException.NotFound e) {
+                logger.warn("Mascota no encontrada: {}", reportes.getMascotaId());
+                throw new MascotaNoEncontradaException("La mascota con id " + reportes.getMascotaId() + " no existe");
+            } catch (WebClientResponseException e) {
+                logger.error("Error al consultar el servicio de mascotas: {}", e.getMessage());
+                throw new RuntimeException("Error al consultar el servicio de mascotas: " + e.getMessage());
+            }
+        }
+
+        // Solo validar usuario si viene un usuarioId
+        if (reportes.getUsuarioId() != null) {
+            logger.info("Validando existencia de usuario con id: {}", reportes.getUsuarioId());
+            try {
+                webClientBuilder.build()
+                        .get()
+                        .uri(usuariosServiceUrl + "/api/usuario/" + reportes.getUsuarioId())
+                        .retrieve()
+                        .bodyToMono(Object.class)
+                        .block();
+                logger.info("Usuario encontrado correctamente");
+            } catch (WebClientResponseException.NotFound e) {
+                logger.warn("Usuario no encontrado: {}", reportes.getUsuarioId());
+                throw new UsuarioNoEncontradoException("El usuario con id " + reportes.getUsuarioId() + " no existe");
+            } catch (WebClientResponseException e) {
+                logger.error("Error al consultar el servicio de usuarios: {}", e.getMessage());
+                throw new RuntimeException("Error al consultar el servicio de usuarios: " + e.getMessage());
+            }
+        }
+
+        logger.info("Guardando reporte en base de datos");
         return reportesRepository.save(reportes);
     }
 
@@ -41,11 +104,15 @@ public class ReportesServiceImpl  implements ReportesService{
         if(reporteExistente.isPresent()){
             Reportes reporteActualizado = reporteExistente.get();
             reporteActualizado.setDescripcion(reportes.getDescripcion());
-            reporteActualizado.setCoordenadas(reportes.getCoordenadas());
+            reporteActualizado.setUbicacion(reportes.getUbicacion());
             reporteActualizado.setEstado(reportes.getEstado());
             reporteActualizado.setImg(reportes.getImg());
             reporteActualizado.setMascotaId(reportes.getMascotaId());
             reporteActualizado.setUsuarioId(reportes.getUsuarioId());
+            reporteActualizado.setNombre_mascota(reportes.getNombre_mascota());
+            reporteActualizado.setNombre_usuario(reportes.getNombre_usuario());
+            reporteActualizado.setFechaReporte(reportes.getFechaReporte());
+            reporteActualizado.setTelefono(reportes.getTelefono());
 
             return reportesRepository.save(reporteActualizado);
         }
