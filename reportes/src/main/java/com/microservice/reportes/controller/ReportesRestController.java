@@ -1,4 +1,4 @@
-package com.microservice.reportes.controller;
+ package com.microservice.reportes.controller;
 
 import java.net.URI;
 import java.util.List;
@@ -19,7 +19,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.reactive.function.client.WebClient;
 
+import com.microservice.reportes.dto.ReporteDetalleDTO;
 import com.microservice.reportes.entity.Reportes;
 import com.microservice.reportes.exception.MascotaNoEncontradaException;
 import com.microservice.reportes.exception.UsuarioNoEncontradoException;
@@ -39,7 +41,6 @@ public class ReportesRestController {
     @Autowired
     private ReportesService reporteService;
 
-
     @Value("${cloudflare.r2.access-key}")
     private String r2AccessKey;
 
@@ -51,6 +52,15 @@ public class ReportesRestController {
 
     @Value("${cloudflare.r2.endpoint}")
     private String r2Endpoint;
+
+    @Autowired
+    private WebClient.Builder webClientBuilder;
+
+    @Value("${mascotas.service.url}")
+    private String mascotasServiceUrl;
+
+    @Value("${usuario.service.urls}")
+    private String usuariosServiceUrl;
 
     @PostMapping
     public ResponseEntity<Reportes> crearReporte(@RequestBody Reportes reportes) {
@@ -141,22 +151,65 @@ public class ReportesRestController {
 
             String key = "imagenes/" + file.getOriginalFilename();
 
-            s3.putObject(
-                PutObjectRequest.builder()
-                    .bucket(r2Bucket)
-                    .key(key)
-                    .contentType(file.getContentType())
-                    .build(),
-                software.amazon.awssdk.core.sync.RequestBody.fromBytes(file.getBytes())
-            );
+                s3.putObject(
+                    PutObjectRequest.builder()
+                        .bucket(r2Bucket)
+                        .key(key)
+                        .contentType(file.getContentType())
+                        .build(),
+                    software.amazon.awssdk.core.sync.RequestBody.fromBytes(file.getBytes())
+                );
 
-            String publicUrl = r2Endpoint + "/" + r2Bucket + "/" + key;
-            return ResponseEntity.ok(java.util.Map.of("url", publicUrl));
+                // Usar la URL pública del bucket R2
+                String publicUrl = "https://pub-daffd7e8a85c4df4a96cdc1e8f6b61e8.r2.dev/" + key;
+                return ResponseEntity.ok(java.util.Map.of("url", publicUrl));
         } catch (S3Exception e) {
             return ResponseEntity.status(500).body(java.util.Map.of("error", "R2 error", "details", e.awsErrorDetails().errorMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(java.util.Map.of("error", "Internal server error", "details", e.getMessage()));
         }
+    }
+
+    @GetMapping("/detalle/{id}")
+    public ResponseEntity<?> obtenerReporteDetalle(@PathVariable Long id) {
+        Optional<Reportes> reporteOpt = reporteService.obtenerReportePorId(id);
+        if (reporteOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Reporte no encontrado"));
+        }
+        Reportes reporte = reporteOpt.get();
+        Object usuario = null;
+        Object mascota = null;
+        // Consultar usuario si existe usuarioId
+        if (reporte.getUsuarioId() != null) {
+            try {
+                usuario = webClientBuilder.build()
+                        .get()
+                        .uri(usuariosServiceUrl + "/api/usuario/" + reporte.getUsuarioId())
+                        .retrieve()
+                        .bodyToMono(Object.class)
+                        .block();
+            } catch (Exception e) {
+                usuario = null;
+            }
+        }
+        // Consultar mascota si existe mascotaId
+        if (reporte.getMascotaId() != null) {
+            try {
+                mascota = webClientBuilder.build()
+                        .get()
+                        .uri(mascotasServiceUrl + "/api/mascotas/" + reporte.getMascotaId())
+                        .retrieve()
+                        .bodyToMono(Object.class)
+                        .block();
+            } catch (Exception e) {
+                mascota = null;
+            }
+        }
+        ReporteDetalleDTO dto = new ReporteDetalleDTO();
+        dto.setReporte(reporte);
+        dto.setUsuario(usuario);
+        dto.setMascota(mascota);
+        return ResponseEntity.ok(dto);
     }
 
 }

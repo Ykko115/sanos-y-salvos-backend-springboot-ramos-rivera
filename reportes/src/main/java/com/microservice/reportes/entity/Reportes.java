@@ -29,6 +29,7 @@ public class Reportes {
     private Long mascotaId;
     private String descripcion;
     private LocalDate fechaReporte;
+    private Integer telefono;
 
     @Embedded
     private Ubicacion ubicacion;
@@ -54,6 +55,6 @@ public class Reportes {
 
    @Override
     public String toString(){
-    return "Reporte{id=" + id + ", nombre_usuario='" + nombre_usuario + ", nombre_mascota='" + nombre_mascota + ", descripcion='" + descripcion + "', ubicacion='" + ubicacion + "', fechaReporte=" + fechaReporte + "', img=" + img + "', usuarioId='" + usuarioId + "', mascotaId='" + mascotaId +"', estado='" + estado +"}";
+    return "Reporte{id=" + id + ", nombre_usuario='" + nombre_usuario + ", nombre_mascota='" + nombre_mascota + ", descripcion='" + descripcion + ", telefono='" + telefono + "', ubicacion='" + ubicacion + "', fechaReporte=" + fechaReporte + "', img=" + img + "', usuarioId='" + usuarioId + "', mascotaId='" + mascotaId +"', estado='" + estado +"}";
         }
 }

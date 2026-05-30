@@ -109,6 +109,10 @@ public class ReportesServiceImpl  implements ReportesService{
             reporteActualizado.setImg(reportes.getImg());
             reporteActualizado.setMascotaId(reportes.getMascotaId());
             reporteActualizado.setUsuarioId(reportes.getUsuarioId());
+            reporteActualizado.setNombre_mascota(reportes.getNombre_mascota());
+            reporteActualizado.setNombre_usuario(reportes.getNombre_usuario());
+            reporteActualizado.setFechaReporte(reportes.getFechaReporte());
+            reporteActualizado.setTelefono(reportes.getTelefono());
 
             return reportesRepository.save(reporteActualizado);
         }
