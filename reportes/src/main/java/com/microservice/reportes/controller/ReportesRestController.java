@@ -212,4 +212,7 @@ public class ReportesRestController {
         return ResponseEntity.ok(dto);
     }
 
+    // Nota: la colección de detalles se obtiene usando el endpoint existente `/api/reportes`
+    // y el endpoint `/detalle/{id}` devuelve el detalle de un reporte por id.
+
 }

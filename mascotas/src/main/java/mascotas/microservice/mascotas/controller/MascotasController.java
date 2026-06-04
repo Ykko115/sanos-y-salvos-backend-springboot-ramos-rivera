@@ -25,7 +25,7 @@ public class MascotasController {
     @Autowired
     private WebClient.Builder webClientBuilder;
 
-    @Value("${usuario.service.urls:http://localhost:8080,http://localhost:8081}")
+    @Value("${usuario.service.urls:http://usuario:8081}")
     private String usuarioServiceUrls;
 
     @Value("${internal.jwt:}")
