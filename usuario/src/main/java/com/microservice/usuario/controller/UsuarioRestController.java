@@ -47,7 +47,7 @@ public class UsuarioRestController {
     @Autowired
     private WebClient.Builder webClientBuilder;
 
-    @Value("${mascotas.service.url:http://localhost:8082}")
+    @Value("${mascotas.service.url:http://mascotas:8082}")
     private String mascotasServiceUrl;
 
         // DTO para login

@@ -16,7 +16,7 @@ public class MascotasClientService {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${mascotas.service.url:http://localhost:8082}")
+    @Value("${mascotas.service.url:http://mascotas:8082}")
     private String mascotasServiceUrl;
 
     public List<Mascotas> obtenerMascotasPorUsuarioId(Long usuarioId) {

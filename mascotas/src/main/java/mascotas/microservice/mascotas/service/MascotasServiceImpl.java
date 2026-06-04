@@ -23,7 +23,7 @@ public class MascotasServiceImpl implements MascotasService {
     @Autowired
     private WebClient.Builder webClientBuilder;
 
-    @Value("${usuario.service.url:http://localhost:8081}")
+    @Value("${usuario.service.url:http://usuario:8081}")
     private String usuarioServiceUrl;
 
     @Override
