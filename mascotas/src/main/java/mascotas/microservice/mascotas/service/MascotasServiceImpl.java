@@ -15,7 +15,6 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import mascotas.microservice.mascotas.client.MascotaMatcherClient;
 import mascotas.microservice.mascotas.dto.MatchResultDTO;
 import mascotas.microservice.mascotas.entity.Mascotas;
-import mascotas.microservice.mascotas.entity.Mascotas.Especie;
 import mascotas.microservice.mascotas.repository.MascotasRepository;
 
 @Service
