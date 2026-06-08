@@ -11,6 +11,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import mascotas.microservice.mascotas.entity.Mascotas;
+import mascotas.microservice.mascotas.entity.Mascotas.Especie;
 import mascotas.microservice.mascotas.repository.MascotasRepository;
 
 @Service
@@ -88,7 +89,7 @@ public class MascotasServiceImpl implements MascotasService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Mascotas> obtenerMascotasPorEspecie(String especie) {
+    public List<Mascotas> obtenerMascotasPorEspecie(Mascotas.Especie especie) {
         return mascotasRepository.findByEspecie(especie);
     }
 

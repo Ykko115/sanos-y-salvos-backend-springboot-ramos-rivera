@@ -136,11 +136,14 @@ public class MascotasController {
                 .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
 
-    @GetMapping("/especie/{especie}")
+   @GetMapping("/especie/{especie}")
     public ResponseEntity<List<Mascotas>> obtenerMascotasPorEspecie(@PathVariable String especie) {
         try {
-            List<Mascotas> mascotas = mascotasService.obtenerMascotasPorEspecie(especie);
+            Mascotas.Especie especieEnum = Mascotas.Especie.valueOf(especie.toUpperCase());
+            List<Mascotas> mascotas = mascotasService.obtenerMascotasPorEspecie(especieEnum);
             return new ResponseEntity<>(mascotas, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
