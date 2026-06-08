@@ -1,0 +1,165 @@
+package mascotas.microservice.mascotas.controller;
+
+import mascotas.microservice.mascotas.entity.Mascotas;
+import mascotas.microservice.mascotas.service.MascotasService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import java.util.List;
+import java.util.Optional;
+
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@WebMvcTest(MascotasController.class)
+class MascotasControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockitoBean
+    private MascotasService mascotasService;
+
+    @MockitoBean
+    private WebClient.Builder webClientBuilder;
+
+    private Mascotas mascota;
+
+    @BeforeEach
+    void setUp() {
+        mascota = new Mascotas();
+        mascota.setId(1L);
+        mascota.setNombre("Fido");
+        mascota.setEspecie(Mascotas.Especie.PERRO);
+        mascota.setRaza("Labrador");
+        mascota.setEdad(3);
+        mascota.setDescripcion("Perro amigable");
+        mascota.setUsuarioId(1L);
+    }
+
+    private String toJson(Mascotas m) {
+        return String.format(
+            "{\"id\":%d,\"nombre\":\"%s\",\"especie\":\"%s\",\"raza\":\"%s\"," +
+            "\"edad\":%d,\"descripcion\":\"%s\",\"usuarioId\":%d}",
+            m.getId(), m.getNombre(), m.getEspecie(), m.getRaza(),
+            m.getEdad(), m.getDescripcion(), m.getUsuarioId()
+        );
+    }
+
+    @Test
+    @WithMockUser
+    void crearMascota_debeRetornar201() throws Exception {
+        when(mascotasService.crearMascota(any(Mascotas.class))).thenReturn(mascota);
+
+        mockMvc.perform(post("/api/mascotas")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(toJson(mascota)))
+            .andExpect(status().isCreated());
+    }
+
+    @Test
+    @WithMockUser
+    void obtenerMascotaPorId_existente_debeRetornar200() throws Exception {
+        when(mascotasService.obtenerMascotaPorId(1L)).thenReturn(Optional.of(mascota));
+
+        // Simular WebClient para enriquecer con usuario
+        WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
+        when(responseSpec.bodyToMono(any(Class.class))).thenReturn(reactor.core.publisher.Mono.empty());
+        @SuppressWarnings("rawtypes")
+        WebClient.RequestHeadersSpec headersSpec = mock(WebClient.RequestHeadersSpec.class);
+        when(headersSpec.retrieve()).thenReturn(responseSpec);
+        when(headersSpec.header(anyString(), anyString())).thenReturn(headersSpec);
+        @SuppressWarnings("rawtypes")
+        WebClient.RequestHeadersUriSpec uriSpec = mock(WebClient.RequestHeadersUriSpec.class);
+        when(uriSpec.uri(anyString())).thenReturn(headersSpec);
+        WebClient webClientMock = mock(WebClient.class);
+        when(webClientMock.get()).thenReturn(uriSpec);
+        when(webClientBuilder.build()).thenReturn(webClientMock);
+
+        mockMvc.perform(get("/api/mascotas/1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.mascota.nombre").value("Fido"));
+    }
+
+    @Test
+    @WithMockUser
+    void obtenerMascotaPorId_inexistente_debeRetornar404() throws Exception {
+        when(mascotasService.obtenerMascotaPorId(999L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/mascotas/999"))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser
+    void obtenerTodasLasMascotas_debeRetornarLista() throws Exception {
+        when(mascotasService.obtenerTodasLasMascotas()).thenReturn(List.of(mascota));
+
+        WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
+        when(responseSpec.bodyToMono(any(Class.class))).thenReturn(reactor.core.publisher.Mono.empty());
+        @SuppressWarnings("rawtypes")
+        WebClient.RequestHeadersSpec headersSpec = mock(WebClient.RequestHeadersSpec.class);
+        when(headersSpec.retrieve()).thenReturn(responseSpec);
+        when(headersSpec.header(anyString(), anyString())).thenReturn(headersSpec);
+        @SuppressWarnings("rawtypes")
+        WebClient.RequestHeadersUriSpec uriSpec = mock(WebClient.RequestHeadersUriSpec.class);
+        when(uriSpec.uri(anyString())).thenReturn(headersSpec);
+        WebClient webClientMock = mock(WebClient.class);
+        when(webClientMock.get()).thenReturn(uriSpec);
+        when(webClientBuilder.build()).thenReturn(webClientMock);
+
+        mockMvc.perform(get("/api/mascotas"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    @WithMockUser
+    void eliminarMascota_existente_debeRetornar204() throws Exception {
+        doNothing().when(mascotasService).eliminarMascota(1L);
+
+        mockMvc.perform(delete("/api/mascotas/1").with(csrf()))
+            .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @WithMockUser
+    void eliminarMascota_inexistente_debeRetornar404() throws Exception {
+        doThrow(new RuntimeException("No encontrada"))
+            .when(mascotasService).eliminarMascota(999L);
+
+        mockMvc.perform(delete("/api/mascotas/999").with(csrf()))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser
+    void obtenerMascotasPorEspecie_debeRetornarLista() throws Exception {
+        when(mascotasService.obtenerMascotasPorEspecie(Mascotas.Especie.PERRO)).thenReturn(List.of(mascota));
+
+        mockMvc.perform(get("/api/mascotas/especie/PERRO"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    @WithMockUser
+    void obtenerMascotasPorUsuarioId_debeRetornarLista() throws Exception {
+        when(mascotasService.obtenerMascotasPorUsuarioId(1L)).thenReturn(List.of(mascota));
+
+        mockMvc.perform(get("/api/mascotas/usuario/1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1));
+    }
+}
