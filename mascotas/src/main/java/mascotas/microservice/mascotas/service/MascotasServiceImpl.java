@@ -3,6 +3,8 @@ package mascotas.microservice.mascotas.service;
 import java.util.List;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -10,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import mascotas.microservice.mascotas.client.MascotaMatcherClient;
+import mascotas.microservice.mascotas.dto.MatchResultDTO;
 import mascotas.microservice.mascotas.entity.Mascotas;
 import mascotas.microservice.mascotas.entity.Mascotas.Especie;
 import mascotas.microservice.mascotas.repository.MascotasRepository;
@@ -18,22 +22,75 @@ import mascotas.microservice.mascotas.repository.MascotasRepository;
 @Transactional
 public class MascotasServiceImpl implements MascotasService {
 
+    private static final Logger logger = LoggerFactory.getLogger(MascotasServiceImpl.class);
+
     @Autowired
     private MascotasRepository mascotasRepository;
 
     @Autowired
     private WebClient.Builder webClientBuilder;
 
+    @Autowired
+    private MascotaMatcherClient mascotaMatcherClient;
+
+    @Autowired
+    private NotificacionMatchService notificacionMatchService;
+
     @Value("${usuario.service.url:http://usuario:8081}")
     private String usuarioServiceUrl;
 
+    @Value("${matcher.score.alerta:0.90}")
+    private double matcherScoreAlerta;
+
     @Override
     public Mascotas crearMascota(Mascotas mascota) {
-        // Validar que el usuario existe en el microservicio usuario
-        if (mascota.getUsuarioId() != null && !usuarioExiste(mascota.getUsuarioId())) {
-            throw new RuntimeException("Usuario no encontrado con id: " + mascota.getUsuarioId());
+        // Validar usuario solo si el servicio responde — si no, se guarda igual
+        if (mascota.getUsuarioId() != null) {
+            try {
+                if (!usuarioExiste(mascota.getUsuarioId())) {
+                    logger.warn("Usuario {} no encontrado, se guarda la mascota de todas formas", mascota.getUsuarioId());
+                }
+            } catch (Exception e) {
+                logger.warn("No se pudo validar usuario {}: {}", mascota.getUsuarioId(), e.getMessage());
+            }
         }
-        return mascotasRepository.save(mascota);
+        Mascotas guardada = mascotasRepository.save(mascota);
+
+        // Buscar coincidencias en segundo plano — si falla no interrumpe el flujo
+        try {
+            buscarYNotificarCoincidencias(guardada);
+        } catch (Exception e) {
+            logger.warn("Error al buscar coincidencias (no afecta el registro): {}", e.getMessage());
+        }
+
+        return guardada;
+    }
+
+    private void buscarYNotificarCoincidencias(Mascotas mascotaNueva) {
+        if (mascotaNueva.getEspecie() == null || mascotaNueva.getEstado() == null) {
+            return;
+        }
+        // Buscar mascotas con estado opuesto y la misma especie
+        Mascotas.Estado estadoOpuesto = mascotaNueva.getEstado() == Mascotas.Estado.PERDIDO
+            ? Mascotas.Estado.ENCONTRADO
+            : Mascotas.Estado.PERDIDO;
+
+        List<Mascotas> candidatas = mascotasRepository
+            .findByEspecieAndEstado(mascotaNueva.getEspecie(), estadoOpuesto);
+
+        if (candidatas.isEmpty()) {
+            return;
+        }
+
+        logger.info("Buscando coincidencias para mascota {} entre {} candidatas",
+            mascotaNueva.getId(), candidatas.size());
+
+        List<MatchResultDTO> resultados =
+            mascotaMatcherClient.buscarCoincidencias(mascotaNueva, candidatas);
+
+        resultados.stream()
+            .filter(r -> r.getAlerta() != null && r.getAlerta())
+            .forEach(r -> notificacionMatchService.notificarCoincidencia(mascotaNueva, r));
     }
 
     @Override
@@ -49,24 +106,46 @@ public class MascotasServiceImpl implements MascotasService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<Mascotas> obtenerMascotasPorEstado(Mascotas.Estado estado) {
+        return mascotasRepository.findByEstado(estado);
+    }
+
+    @Override
+    public Mascotas actualizarEstado(Long id, Mascotas.Estado estado) {
+        Mascotas mascota = mascotasRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Mascota no encontrada con id: " + id));
+        mascota.setEstado(estado);
+        Mascotas guardada = mascotasRepository.save(mascota);
+        try { buscarYNotificarCoincidencias(guardada); } catch (Exception e) {
+            logger.warn("Error al buscar coincidencias tras cambio de estado: {}", e.getMessage());
+        }
+        return guardada;
+    }
+
+    @Override
     public Mascotas actualizarMascota(Long id, Mascotas mascota) {
         Optional<Mascotas> mascotaExistente = mascotasRepository.findById(id);
 
         if (mascotaExistente.isPresent()) {
-            Mascotas mascotaAActualizar = mascotaExistente.get();
-            // Validar que el usuario existe en el microservicio usuario si cambia el usuarioId
-            if (mascota.getUsuarioId() != null && !mascota.getUsuarioId().equals(mascotaAActualizar.getUsuarioId())) {
-                if (!usuarioExiste(mascota.getUsuarioId())) {
-                    throw new RuntimeException("Usuario no encontrado con id: " + mascota.getUsuarioId());
-                }
-            }
-            mascotaAActualizar.setNombre(mascota.getNombre());
-            mascotaAActualizar.setEspecie(mascota.getEspecie());
-            mascotaAActualizar.setRaza(mascota.getRaza());
-            mascotaAActualizar.setEdad(mascota.getEdad());
-            mascotaAActualizar.setDescripcion(mascota.getDescripcion());
-            mascotaAActualizar.setUsuarioId(mascota.getUsuarioId());
-            return mascotasRepository.save(mascotaAActualizar);
+            Mascotas m = mascotaExistente.get();
+            // Validación de usuario no bloquea el guardado si el servicio no responde
+            m.setNombre(mascota.getNombre());
+            m.setEspecie(mascota.getEspecie());
+            m.setRaza(mascota.getRaza());
+            m.setColor(mascota.getColor());
+            m.setTamano(mascota.getTamano());
+            m.setPelaje(mascota.getPelaje());
+            m.setEdad(mascota.getEdad());
+            m.setRangoEdad(mascota.getRangoEdad());
+            if (mascota.getSenas() != null) m.setSenas(mascota.getSenas());
+            m.setDescripcion(mascota.getDescripcion());
+            m.setFotoUrl(mascota.getFotoUrl());
+            m.setLat(mascota.getLat());
+            m.setLng(mascota.getLng());
+            if (mascota.getEstado() != null) m.setEstado(mascota.getEstado());
+            if (mascota.getUsuarioId() != null) m.setUsuarioId(mascota.getUsuarioId());
+            return mascotasRepository.save(m);
         }
 
         throw new RuntimeException("Mascota no encontrada con id: " + id);

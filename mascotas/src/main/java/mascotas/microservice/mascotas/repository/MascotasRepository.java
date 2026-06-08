@@ -18,4 +18,8 @@ public interface MascotasRepository extends JpaRepository<Mascotas, Long> {
 
     List<Mascotas> findByUsuarioId(Long usuarioId);
 
+    List<Mascotas> findByEstado(Mascotas.Estado estado);
+
+    List<Mascotas> findByEspecieAndEstado(Mascotas.Especie especie, Mascotas.Estado estado);
+
 }
