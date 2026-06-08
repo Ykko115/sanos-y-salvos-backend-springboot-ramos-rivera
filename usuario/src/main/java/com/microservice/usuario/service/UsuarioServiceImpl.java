@@ -1,3 +1,4 @@
+
 package com.microservice.usuario.service;
 
 import java.util.List;
@@ -91,7 +92,7 @@ public class UsuarioServiceImpl implements UsuarioService {
             if (usuarioActualizado.getApellido() != null) usuario.setApellido(usuarioActualizado.getApellido());
             if (usuarioActualizado.getEmail() != null) usuario.setEmail(usuarioActualizado.getEmail());
             if (usuarioActualizado.getRut() != null) usuario.setRut(usuarioActualizado.getRut());
-            if (usuarioActualizado.getTelefono() != 0) usuario.setTelefono(usuarioActualizado.getTelefono());
+            if (usuarioActualizado.getTelefono() != null && usuarioActualizado.getTelefono() != 0) usuario.setTelefono(usuarioActualizado.getTelefono());
             if (usuarioActualizado.getPassword() != null) {
                 try{
                     String hashed = passwordEncoder.encode(usuarioActualizado.getPassword());
@@ -105,5 +106,11 @@ public class UsuarioServiceImpl implements UsuarioService {
             return usuarioRepository.save(usuario);
         }
         return null;
+    }
+
+    @Override
+    public Usuario buscarPorEmail(String email) {
+        if (email == null) return null;
+        return usuarioRepository.findByEmail(email).orElse(null);
     }
 }

@@ -1,6 +1,8 @@
 package com.microservice.usuario.service;
 import java.util.List;
+
 import com.microservice.usuario.entitie.Usuario;
+
 
 public interface UsuarioService {
 
@@ -12,5 +14,6 @@ public interface UsuarioService {
     List<Usuario> listarTodos();
     void eliminar(Long id);
     Usuario actualizar(Long id, Usuario usuarioActualizado);
+    Usuario buscarPorEmail(String email);
 }
 

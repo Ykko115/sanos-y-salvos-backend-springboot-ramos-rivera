@@ -1,0 +1,6 @@
+target
+.git
+**/target
+**/.git
+**/*.log
+**/*.tmp

@@ -1,0 +1,21 @@
+{
+  "name": "reportes",
+  "version": "1.0.0",
+  "description": "Este módulo implementa el microservicio de generación de reportes clínicos veterinarios para la plataforma \"Sanos y Salvos\". Permite crear, consultar y administrar reportes asociados a las mascotas registradas, facilitando el seguimiento y la gestión clínica dentro del sistema.",
+  "main": "upload-image-server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cors": "^2.8.6",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "form-data": "^4.0.0",
+    "multer": "^1.4.5-lts.1"
+  }
+}

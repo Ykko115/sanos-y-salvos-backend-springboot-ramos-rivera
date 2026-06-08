@@ -28,7 +28,7 @@ public class Usuario {
     private String nombre;
     private String apellido;
     private String email;
-    private int telefono;
+    private Integer telefono;
     private String password;
     private Boolean activo = true;
     public enum Rol{
