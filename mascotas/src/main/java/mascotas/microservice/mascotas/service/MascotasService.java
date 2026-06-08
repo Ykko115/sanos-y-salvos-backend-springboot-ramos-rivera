@@ -15,7 +15,7 @@ public interface MascotasService {
     Mascotas actualizarEstado(Long id, Mascotas.Estado estado);
     void eliminarMascota(Long id);
     Optional<Mascotas> obtenerMascotaPorNombre(String nombre);
-    List<Mascotas> obtenerMascotasPorEspecie(String especie);
+    List<Mascotas> obtenerMascotasPorEspecie(Mascotas.Especie especie);
     List<Mascotas> obtenerMascotasPorRaza(String raza);
     List<Mascotas> obtenerMascotasPorUsuarioId(Long usuarioId);
 
