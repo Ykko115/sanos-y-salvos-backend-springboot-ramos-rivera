@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -17,16 +18,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import com.gateway.apigateway.security.JwtUtil;
 import com.microservice.usuario.entitie.Usuario;
-import com.microservice.usuario.service.UsuarioService;
 import com.microservice.usuario.entitie.dto.MascotaDTO;
 import com.microservice.usuario.entitie.dto.UsuarioDTO;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.reactive.function.client.WebClient;
+import com.microservice.usuario.service.UsuarioService;
 
 
 
@@ -49,7 +49,6 @@ public class UsuarioRestController {
 
     @Value("${mascotas.service.url:http://mascotas:8082}")
     private String mascotasServiceUrl;
-
         // DTO para login
         public static class LoginRequest {
             private String email;
