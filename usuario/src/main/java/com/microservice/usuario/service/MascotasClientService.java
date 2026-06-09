@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import com.microservice.usuario.entitie.dto.Mascotas;
+import com.microservice.usuario.entitie.dto.MascotaDTO;
 
 @Service
 public class MascotasClientService {
@@ -19,10 +19,10 @@ public class MascotasClientService {
     @Value("${mascotas.service.url:http://mascotas:8082}")
     private String mascotasServiceUrl;
 
-    public List<Mascotas> obtenerMascotasPorUsuarioId(Long usuarioId) {
+    public List<MascotaDTO> obtenerMascotasPorUsuarioId(Long usuarioId) {
         try {
             String url = mascotasServiceUrl + "/api/mascotas/usuario/" + usuarioId;
-            Mascotas[] mascotas = restTemplate.getForObject(url, Mascotas[].class);
+            MascotaDTO[] mascotas = restTemplate.getForObject(url, MascotaDTO[].class);
             if (mascotas == null) {
                 return Collections.emptyList();
             }
