@@ -26,6 +26,8 @@ import com.microservice.reportes.entity.Reportes;
 import com.microservice.reportes.exception.MascotaNoEncontradaException;
 import com.microservice.reportes.exception.UsuarioNoEncontradoException;
 import com.microservice.reportes.service.ReportesService;
+import com.microservice.reportes.dto.CrearReporteDTO;
+import com.microservice.reportes.dto.ActualizarReporteDTO;
 
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -63,8 +65,17 @@ public class ReportesRestController {
     private String usuariosServiceUrl;
 
     @PostMapping
-    public ResponseEntity<Reportes> crearReporte(@RequestBody Reportes reportes) {
+    public ResponseEntity<Reportes> crearReporte(@RequestBody CrearReporteDTO dto) {
         try {
+            Reportes reportes = new Reportes();
+            reportes.setUsuarioId(dto.getUsuarioId());
+            reportes.setMascotaId(dto.getMascotaId());
+            reportes.setDescripcion(dto.getDescripcion());
+            reportes.setTelefono(dto.getTelefono());
+            reportes.setUbicacion(dto.getUbicacion());
+            reportes.setImg(dto.getImg());
+            reportes.setEstado(dto.getEstado());
+            reportes.setFechaReporte(dto.getFechaReporte());
             Reportes reporteCreado = reporteService.creaReporte(reportes);
             return new ResponseEntity<>(reporteCreado, HttpStatus.CREATED);
         } catch (MascotaNoEncontradaException | UsuarioNoEncontradoException e) {
@@ -88,7 +99,15 @@ public class ReportesRestController {
     }
     
     @PutMapping("/{id}")
-    public ResponseEntity<Reportes> actualizarReporte(@PathVariable Long id, @RequestBody Reportes reporteActualizado){
+    public ResponseEntity<Reportes> actualizarReporte(@PathVariable Long id, @RequestBody ActualizarReporteDTO dto) {
+        Reportes reporteActualizado = new Reportes();
+        reporteActualizado.setUsuarioId(dto.getUsuarioId());
+        reporteActualizado.setMascotaId(dto.getMascotaId());
+        reporteActualizado.setDescripcion(dto.getDescripcion());
+        reporteActualizado.setTelefono(dto.getTelefono());
+        reporteActualizado.setUbicacion(dto.getUbicacion());
+        reporteActualizado.setImg(dto.getImg());
+        reporteActualizado.setEstado(dto.getEstado());
         Reportes reportes = reporteService.actualizarReporte(id, reporteActualizado);
         return ResponseEntity.ok(reportes);
     }
