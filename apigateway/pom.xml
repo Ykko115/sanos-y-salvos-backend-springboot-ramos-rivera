@@ -69,6 +69,17 @@
 			<artifactId>spring-cloud-starter-gateway-server-webmvc</artifactId>
 		</dependency>
 
+		<!-- Circuit Breaker (Resilience4j) para los filtros de ruta del Gateway -->
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+		</dependency>
+		<!-- Actuator: expone el estado de los circuit breakers en /actuator -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>

@@ -27,6 +27,7 @@ import com.microservice.usuario.entitie.Usuario;
 import com.microservice.usuario.entitie.dto.ActualizarUsuarioDTO;
 import com.microservice.usuario.entitie.dto.CrearUsuarioDTO;
 import com.microservice.usuario.entitie.dto.MascotaDTO;
+import com.microservice.usuario.exception.ServicioNoDisponibleException;
 import com.microservice.usuario.service.UsuarioService;
  
 @RequestMapping("/api/usuario")
@@ -188,6 +189,8 @@ public class UsuarioRestController {
     public ResponseEntity<Usuario> obtenerUsuarioConMascotas(@PathVariable Long id) {
         try {
             return ResponseEntity.ok(usuarioService.obtenerUsuarioConMascotas(id));
+        } catch (ServicioNoDisponibleException ex) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE).build();
         } catch (RuntimeException ex) {
             return ResponseEntity.notFound().build();
         }

@@ -19,6 +19,7 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authorizeHttpRequests(authz -> authz
+                .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/api/mascotas/**").permitAll()
                 .anyRequest().authenticated()
             )

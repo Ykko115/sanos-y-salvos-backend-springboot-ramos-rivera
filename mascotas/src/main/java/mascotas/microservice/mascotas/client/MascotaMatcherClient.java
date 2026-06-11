@@ -1,11 +1,13 @@
 package mascotas.microservice.mascotas.client;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import mascotas.microservice.mascotas.dto.MatchResultDTO;
 import mascotas.microservice.mascotas.entity.Mascotas;
+import mascotas.microservice.mascotas.exception.ServicioNoDisponibleException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,7 +16,6 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -25,6 +26,9 @@ import java.util.stream.Collectors;
 public class MascotaMatcherClient {
 
     private static final Logger logger = LoggerFactory.getLogger(MascotaMatcherClient.class);
+
+    /** Nombre de la instancia de Circuit Breaker (ver application.properties). */
+    private static final String CB_FASTAPI = "fastapiMatcher";
 
     @Autowired
     private WebClient.Builder webClientBuilder;
@@ -76,43 +80,54 @@ public class MascotaMatcherClient {
 
     /**
      * Llama a POST /api/match en el microservicio FastAPI.
-     * Si FastAPI no responde o hay error, retorna lista vacía sin romper el flujo.
+     *
+     * Está protegido por el Circuit Breaker de Resilience4j "fastapiMatcher":
+     * si se acumulan 5 errores de conexión consecutivos el circuito se ABRE y
+     * las llamadas siguientes fallan de inmediato a través de
+     * {@link #buscarCoincidenciasFallback}. Los errores de conexión se propagan
+     * (ya no se silencian aquí) para que el Circuit Breaker pueda contabilizarlos.
      *
      * @param mascotaReportada mascota recién guardada en la DB
      * @param candidatas       mascotas con estado opuesto de la misma especie
-     * @return resultados ordenados por score desc, o lista vacía ante cualquier fallo
+     * @return resultados ordenados por score desc
      */
+    @CircuitBreaker(name = CB_FASTAPI, fallbackMethod = "buscarCoincidenciasFallback")
     public List<MatchResultDTO> buscarCoincidencias(Mascotas mascotaReportada,
-                                                     List<Mascotas> candidatas) {
+                                                    List<Mascotas> candidatas) {
         if (candidatas == null || candidatas.isEmpty()) {
             return Collections.emptyList();
         }
 
-        try {
-            MatchRequestBody body = new MatchRequestBody(
-                toDTO(mascotaReportada),
-                candidatas.stream().map(this::toDTO).collect(Collectors.toList())
-            );
+        MatchRequestBody body = new MatchRequestBody(
+            toDTO(mascotaReportada),
+            candidatas.stream().map(this::toDTO).collect(Collectors.toList())
+        );
 
-            List<MatchResultDTO> resultado = webClientBuilder.build()
-                .post()
-                .uri(fastapiUrl + "/api/match")
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<List<MatchResultDTO>>() {})
-                .timeout(Duration.ofSeconds(30))
-                .onErrorResume(ex -> {
-                    logger.error("FastAPI no respondió: {}", ex.getMessage());
-                    return Mono.just(Collections.emptyList());
-                })
-                .block();
+        List<MatchResultDTO> resultado = webClientBuilder.build()
+            .post()
+            .uri(fastapiUrl + "/api/match")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(body)
+            .retrieve()
+            .bodyToMono(new ParameterizedTypeReference<List<MatchResultDTO>>() {})
+            .timeout(Duration.ofSeconds(30))
+            .block();
 
-            return resultado != null ? resultado : Collections.emptyList();
+        return resultado != null ? resultado : Collections.emptyList();
+    }
 
-        } catch (Exception e) {
-            logger.error("Error al llamar al motor de coincidencias: {}", e.getMessage());
-            return Collections.emptyList();
-        }
+    /**
+     * Método de respaldo que invoca Resilience4j cuando el circuito está ABIERTO
+     * o cuando se produce un error de conexión con FastAPI. Se falla rápido con
+     * un 503; el llamador ({@code MascotasServiceImpl}) ya captura este error de
+     * forma que el registro de la mascota nunca se vea afectado.
+     */
+    public List<MatchResultDTO> buscarCoincidenciasFallback(Mascotas mascotaReportada,
+                                                            List<Mascotas> candidatas,
+                                                            Throwable t) {
+        logger.error("Circuit breaker '{}' activo o fallo de conexión con el motor de "
+            + "coincidencias FastAPI: {}", CB_FASTAPI, t.toString());
+        throw new ServicioNoDisponibleException(
+            "El motor de coincidencias (FastAPI) no está disponible en este momento.", t);
     }
 }

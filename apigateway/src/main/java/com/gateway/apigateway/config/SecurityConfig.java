@@ -27,6 +27,8 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers("/fallback/**").permitAll()
+                .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/usuario/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/usuario/**").permitAll()

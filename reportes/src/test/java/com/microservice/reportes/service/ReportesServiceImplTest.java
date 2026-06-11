@@ -11,26 +11,21 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import com.microservice.reportes.client.ServicioValidacionClient;
 import com.microservice.reportes.entity.Reportes;
 import com.microservice.reportes.entity.Reportes.Estado;
 import com.microservice.reportes.exception.MascotaNoEncontradaException;
 import com.microservice.reportes.repository.ReportesRepository;
-
-import reactor.core.publisher.Mono;
 
 @ExtendWith(MockitoExtension.class)
 class ReportesServiceImplTest {
@@ -38,8 +33,9 @@ class ReportesServiceImplTest {
     @Mock
     private ReportesRepository reportesRepository;
 
+    // La comunicación remota (con sus circuit breakers) vive ahora en este cliente.
     @Mock
-    private WebClient.Builder webClientBuilder;
+    private ServicioValidacionClient servicioValidacionClient;
 
     @InjectMocks
     private ReportesServiceImpl reportesService;
@@ -48,9 +44,6 @@ class ReportesServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(reportesService, "mascotasServiceUrl", "http://mascotas-service");
-        ReflectionTestUtils.setField(reportesService, "usuariosServiceUrl", "http://usuarios-service");
-
         reporte = new Reportes();
         reporte.setId(1L);
         reporte.setNombre_mascota("Fido");
@@ -60,55 +53,6 @@ class ReportesServiceImplTest {
         reporte.setFechaReporte(LocalDate.now());
         reporte.setUbicacion(new Reportes.Ubicacion(-33.45, -70.66));
     }
-
-    // ─── Helper: construye un WebClient mockeado que devuelve éxito ───────────
-
-    private WebClient buildWebClientMockOk() {
-        WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
-        when(responseSpec.bodyToMono(Object.class)).thenReturn(Mono.just(new Object()));
-
-        // RequestHeadersSpec con raw type para evitar el problema de wildcards
-        @SuppressWarnings("rawtypes")
-        WebClient.RequestHeadersSpec headersSpec = mock(WebClient.RequestHeadersSpec.class);
-        when(headersSpec.retrieve()).thenReturn(responseSpec);
-
-        @SuppressWarnings("rawtypes")
-        WebClient.RequestHeadersUriSpec uriSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        when(uriSpec.uri(anyString())).thenReturn(headersSpec);
-
-        WebClient webClient = mock(WebClient.class);
-        when(webClient.get()).thenReturn(uriSpec);
-
-        return webClient;
-    }
-
-    // ─── Helper: construye un WebClient mockeado que lanza 404 ───────────────
-
-    private WebClient buildWebClientMockNotFound() {
-    // Crear la excepción correcta: NotFound (404), no la genérica
-        WebClientResponseException.NotFound notFoundEx = (WebClientResponseException.NotFound)
-            WebClientResponseException.create(404, "Not Found", 
-                org.springframework.http.HttpHeaders.EMPTY, 
-                new byte[0], 
-                java.nio.charset.StandardCharsets.UTF_8);
-
-        WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
-        when(responseSpec.bodyToMono(Object.class))
-            .thenReturn(Mono.error(notFoundEx));
-
-        @SuppressWarnings("rawtypes")
-        WebClient.RequestHeadersSpec headersSpec = mock(WebClient.RequestHeadersSpec.class);
-        when(headersSpec.retrieve()).thenReturn(responseSpec);
-
-        @SuppressWarnings("rawtypes")
-        WebClient.RequestHeadersUriSpec uriSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        when(uriSpec.uri(anyString())).thenReturn(headersSpec);
-
-        WebClient webClient = mock(WebClient.class);
-        when(webClient.get()).thenReturn(uriSpec);
-
-        return webClient;
-    }   
 
     // ─── creaReporte ─────────────────────────────────────────────────────────
 
@@ -122,7 +66,7 @@ class ReportesServiceImplTest {
 
         assertThat(resultado.getNombre_mascota()).isEqualTo("Fido");
         verify(reportesRepository).save(reporte);
-        verifyNoInteractions(webClientBuilder);
+        verifyNoInteractions(servicioValidacionClient);
     }
 
     @Test
@@ -130,15 +74,13 @@ class ReportesServiceImplTest {
         reporte.setMascotaId(10L);
         reporte.setUsuarioId(null);
 
-        // 1. Primero construir el mock
-        WebClient webClientMock = buildWebClientMockOk();
-        // 2. Luego stubear
-        when(webClientBuilder.build()).thenReturn(webClientMock);
+        doNothing().when(servicioValidacionClient).validarMascotaExiste(10L);
         when(reportesRepository.save(reporte)).thenReturn(reporte);
 
         Reportes resultado = reportesService.creaReporte(reporte);
 
         assertThat(resultado).isNotNull();
+        verify(servicioValidacionClient).validarMascotaExiste(10L);
         verify(reportesRepository).save(reporte);
     }
 
@@ -147,13 +89,13 @@ class ReportesServiceImplTest {
         reporte.setMascotaId(null);
         reporte.setUsuarioId(5L);
 
-        WebClient webClientMock = buildWebClientMockOk();
-        when(webClientBuilder.build()).thenReturn(webClientMock);
+        doNothing().when(servicioValidacionClient).validarUsuarioExiste(5L);
         when(reportesRepository.save(reporte)).thenReturn(reporte);
 
         Reportes resultado = reportesService.creaReporte(reporte);
 
         assertThat(resultado).isNotNull();
+        verify(servicioValidacionClient).validarUsuarioExiste(5L);
         verify(reportesRepository).save(reporte);
     }
 
@@ -162,8 +104,8 @@ class ReportesServiceImplTest {
         reporte.setMascotaId(99L);
         reporte.setUsuarioId(null);
 
-        WebClient webClientMock = buildWebClientMockNotFound();
-        when(webClientBuilder.build()).thenReturn(webClientMock);
+        doThrow(new MascotaNoEncontradaException("La mascota con id 99 no existe"))
+            .when(servicioValidacionClient).validarMascotaExiste(99L);
 
         assertThatThrownBy(() -> reportesService.creaReporte(reporte))
             .isInstanceOf(MascotaNoEncontradaException.class);
