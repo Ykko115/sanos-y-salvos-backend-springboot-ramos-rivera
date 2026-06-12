@@ -4,7 +4,6 @@ import com.microservice.usuario.entitie.Usuario;
 import com.microservice.usuario.entitie.dto.ActualizarUsuarioDTO;
 import com.microservice.usuario.entitie.dto.CrearUsuarioDTO;
 import com.microservice.usuario.exception.ServicioNoDisponibleException;
-import com.microservice.usuario.security.JwtUtil;
 import com.microservice.usuario.service.UsuarioService;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +24,8 @@ import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import com.microservice.usuario.security.JwtUtil;
 
 
 @WebMvcTest(UsuarioRestController.class)
