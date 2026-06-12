@@ -3,12 +3,10 @@ package com.microservice.usuario.controller;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
- 
+
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -83,19 +81,17 @@ public class UsuarioRestController {
  
     // ─── Helpers privados ────────────────────────────────────────────────────
  
-    /** Devuelve true si el usuario autenticado tiene rol ADMIN. */
-    private boolean callerIsAdmin() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()) {
+    /** Devuelve true si el JWT del header Authorization tiene rol ADMIN. */
+    private boolean callerIsAdmin(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header == null || !header.startsWith("Bearer ")) return false;
+        try {
+            String token = header.substring(7);
+            List<String> roles = jwtUtil.extractRoles(jwtUtil.getClaimsFromToken(token));
+            return roles.contains(ROLE_ADMIN) || roles.contains("ADMIN");
+        } catch (Exception ex) {
             return false;
         }
-        // getAuthorities() nunca retorna null en Spring Security; se itera directamente
-        for (GrantedAuthority ga : auth.getAuthorities()) {
-            if (ROLE_ADMIN.equals(ga.getAuthority()) || "ADMIN".equals(ga.getAuthority())) {
-                return true;
-            }
-        }
-        return false;
     }
  
     /** Construye el mapa de respuesta con los datos públicos de un usuario. */
@@ -150,9 +146,9 @@ public class UsuarioRestController {
     }
  
     @PostMapping
-    public ResponseEntity<Map<String, Object>> crear(@RequestBody CrearUsuarioDTO dto) {
+    public ResponseEntity<Map<String, Object>> crear(HttpServletRequest request, @RequestBody CrearUsuarioDTO dto) {
         // Si el llamante no es admin o no especificó rol, forzar USER
-        if (!callerIsAdmin() || dto.getRol() == null) {
+        if (!callerIsAdmin(request) || dto.getRol() == null) {
             dto.setRol("USER");
         }
         try {
@@ -213,7 +209,11 @@ public class UsuarioRestController {
     }
  
     @PutMapping("/{id}")
-    public ResponseEntity<Usuario> actualizar(@PathVariable Long id, @RequestBody ActualizarUsuarioDTO dto) {
+    public ResponseEntity<Usuario> actualizar(HttpServletRequest request, @PathVariable Long id, @RequestBody ActualizarUsuarioDTO dto) {
+        if (!callerIsAdmin(request)) {
+            dto.setRol(null);
+            dto.setActivo(null);
+        }
         return ResponseEntity.ok(usuarioService.actualizar(id, dto));
     }
 }

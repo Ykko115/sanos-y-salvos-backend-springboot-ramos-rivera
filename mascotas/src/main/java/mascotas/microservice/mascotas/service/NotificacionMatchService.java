@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import mascotas.microservice.mascotas.dto.MatchResultDTO;
@@ -17,8 +16,11 @@ public class NotificacionMatchService {
 
     private static final Logger logger = LoggerFactory.getLogger(NotificacionMatchService.class);
 
-    @Autowired
-    private NotificacionMatchRepository notificacionMatchRepository;
+    private final NotificacionMatchRepository notificacionMatchRepository;
+
+    public NotificacionMatchService(NotificacionMatchRepository notificacionMatchRepository) {
+        this.notificacionMatchRepository = notificacionMatchRepository;
+    }
 
     /**
      * Guarda la coincidencia en la tabla notificaciones_match y loggea el evento.

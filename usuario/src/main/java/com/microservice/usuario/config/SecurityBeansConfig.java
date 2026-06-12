@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 public class SecurityBeansConfig {
 
 	@Bean
+	@SuppressWarnings("java:S112")
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		http
 			.csrf(csrf -> csrf.disable()) // NOSONAR: REST stateless con JWT, sin cookies de sesión

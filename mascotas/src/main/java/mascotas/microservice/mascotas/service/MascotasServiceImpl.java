@@ -1,6 +1,7 @@
 package mascotas.microservice.mascotas.service;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -149,7 +150,7 @@ public class MascotasServiceImpl implements MascotasService {
             return mascotasRepository.save(m);
         }
 
-        throw new RuntimeException("Mascota no encontrada con id: " + id);
+        throw new NoSuchElementException("Mascota no encontrada con id: " + id);
     }
 
     @Override
@@ -157,7 +158,7 @@ public class MascotasServiceImpl implements MascotasService {
         if (mascotasRepository.existsById(id)) {
             mascotasRepository.deleteById(id);
         } else {
-            throw new RuntimeException("Mascota no encontrada con id: " + id);
+            throw new NoSuchElementException("Mascota no encontrada con id: " + id);
         }
     }
 
