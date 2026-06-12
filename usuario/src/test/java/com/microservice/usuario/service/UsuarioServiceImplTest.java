@@ -178,16 +178,82 @@ class UsuarioServiceImplTest {
     }
  
     // ─── existsByEmail / existsByRut ──────────────────────────────────────────
- 
+
     @Test
     void existsByEmail_existente_debeRetornarTrue() {
         when(usuarioRepository.existsByEmail("juan@test.com")).thenReturn(true);
         assertThat(usuarioService.existsByEmail("juan@test.com")).isTrue();
     }
- 
+
     @Test
     void existsByRut_existente_debeRetornarTrue() {
         when(usuarioRepository.existsByRut("12345678-9")).thenReturn(true);
         assertThat(usuarioService.existsByRut("12345678-9")).isTrue();
+    }
+
+    @Test
+    void existsByEmail_null_debeRetornarFalse() {
+        assertThat(usuarioService.existsByEmail(null)).isFalse();
+    }
+
+    @Test
+    void existsByRut_null_debeRetornarFalse() {
+        assertThat(usuarioService.existsByRut(null)).isFalse();
+    }
+
+    // ─── obtenerUsuarioConMascotas ────────────────────────────────────────────
+
+    @Test
+    void obtenerUsuarioConMascotas_existente_debeRetornarUsuarioConMascotas() {
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuario));
+        when(mascotasClientService.obtenerMascotasPorUsuarioId(1L)).thenReturn(List.of());
+
+        Usuario resultado = usuarioService.obtenerUsuarioConMascotas(1L);
+
+        assertThat(resultado).isNotNull();
+        assertThat(resultado.getEmail()).isEqualTo("juan@test.com");
+    }
+
+    // ─── actualizar con password ──────────────────────────────────────────────
+
+    @Test
+    void actualizar_conPassword_debeHashearPassword() {
+        ActualizarUsuarioDTO dto = new ActualizarUsuarioDTO();
+        dto.setPassword("nuevaPassword");
+
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.encode("nuevaPassword")).thenReturn("hashedNueva");
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Usuario resultado = usuarioService.actualizar(1L, dto);
+
+        assertThat(resultado.getPassword()).isEqualTo("hashedNueva");
+    }
+
+    // ─── crear con rol inválido ───────────────────────────────────────────────
+
+    @Test
+    void crear_conRolInvalido_debeUsarRolUser() {
+        crearDTO.setRol("ROL_INEXISTENTE");
+        when(usuarioRepository.existsByEmail(anyString())).thenReturn(false);
+        when(usuarioRepository.existsByRut(anyString())).thenReturn(false);
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed");
+        when(usuarioRepository.save(any(Usuario.class))).thenReturn(usuario);
+
+        Usuario resultado = usuarioService.crear(crearDTO);
+
+        assertThat(resultado).isNotNull();
+    }
+
+    @Test
+    void crear_sinPassword_noHashea() {
+        crearDTO.setPassword(null);
+        when(usuarioRepository.existsByEmail(anyString())).thenReturn(false);
+        when(usuarioRepository.existsByRut(anyString())).thenReturn(false);
+        when(usuarioRepository.save(any(Usuario.class))).thenReturn(usuario);
+
+        Usuario resultado = usuarioService.crear(crearDTO);
+
+        assertThat(resultado).isNotNull();
     }
 }
