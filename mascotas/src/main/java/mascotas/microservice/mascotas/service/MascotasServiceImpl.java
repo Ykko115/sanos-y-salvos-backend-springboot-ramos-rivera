@@ -5,7 +5,6 @@ import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,23 +22,26 @@ public class MascotasServiceImpl implements MascotasService {
 
     private static final Logger logger = LoggerFactory.getLogger(MascotasServiceImpl.class);
 
-    @Autowired
-    private MascotasRepository mascotasRepository;
-
-    @Autowired
-    private WebClient.Builder webClientBuilder;
-
-    @Autowired
-    private MascotaMatcherClient mascotaMatcherClient;
-
-    @Autowired
-    private NotificacionMatchService notificacionMatchService;
+    private final MascotasRepository mascotasRepository;
+    private final WebClient.Builder webClientBuilder;
+    private final MascotaMatcherClient mascotaMatcherClient;
+    private final NotificacionMatchService notificacionMatchService;
 
     @Value("${usuario.service.url:http://usuario:8081}")
     private String usuarioServiceUrl;
 
     @Value("${matcher.score.alerta:0.90}")
     private double matcherScoreAlerta;
+
+    public MascotasServiceImpl(MascotasRepository mascotasRepository,
+                               WebClient.Builder webClientBuilder,
+                               MascotaMatcherClient mascotaMatcherClient,
+                               NotificacionMatchService notificacionMatchService) {
+        this.mascotasRepository = mascotasRepository;
+        this.webClientBuilder = webClientBuilder;
+        this.mascotaMatcherClient = mascotaMatcherClient;
+        this.notificacionMatchService = notificacionMatchService;
+    }
 
     @Override
     public Mascotas crearMascota(Mascotas mascota) {

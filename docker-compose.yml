@@ -11,9 +11,7 @@ services:
       - "5432:5432"
 
   usuario:
-    build:
-      context: .
-      dockerfile: usuario/Dockerfile
+    build: ./usuario
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -60,5 +58,35 @@ services:
       - mascotas
       - reportes
 
+  db-sonarqube:
+    image: postgres:16-alpine
+    container_name: db-sonarqube
+    environment:
+      POSTGRES_USER: sonar           
+      POSTGRES_PASSWORD: sonar_1234  
+      POSTGRES_DB: sonar
+    volumes:
+      - sonar-db-data:/var/lib/postgresql/data
+
+  sonarqube:
+    image: sonarqube:community
+    container_name: sonarqube
+    depends_on:
+      - db-sonarqube
+    environment:
+      SONAR_JDBC_USERNAME: sonar          
+      SONAR_JDBC_PASSWORD: sonar_1234     
+      SONAR_JDBC_URL: jdbc:postgresql://db-sonarqube:5432/sonar
+    ports:
+      - "9000:9000"
+    volumes:
+      - sonar-data:/opt/sonarqube/data
+      - sonar-extensions:/opt/sonarqube/extensions
+      - sonar-logs:/opt/sonarqube/logs
+
 volumes:
   postgres-data:
+  sonar-db-data:
+  sonar-data:
+  sonar-extensions:
+  sonar-logs:

@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +25,8 @@ import com.microservice.reportes.entity.Reportes;
 import com.microservice.reportes.exception.MascotaNoEncontradaException;
 import com.microservice.reportes.exception.UsuarioNoEncontradoException;
 import com.microservice.reportes.service.ReportesService;
+import com.microservice.reportes.dto.CrearReporteDTO;
+import com.microservice.reportes.dto.ActualizarReporteDTO;
 
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -38,8 +39,10 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 @RequestMapping("/api/reportes")
 public class ReportesRestController {
 
-    @Autowired
-    private ReportesService reporteService;
+    private static final String ERROR_KEY = "error";
+
+    private final ReportesService reporteService;
+    private final WebClient.Builder webClientBuilder;
 
     @Value("${cloudflare.r2.access-key}")
     private String r2AccessKey;
@@ -53,18 +56,29 @@ public class ReportesRestController {
     @Value("${cloudflare.r2.endpoint}")
     private String r2Endpoint;
 
-    @Autowired
-    private WebClient.Builder webClientBuilder;
-
     @Value("${mascotas.service.url}")
     private String mascotasServiceUrl;
 
     @Value("${usuario.service.urls}")
     private String usuariosServiceUrl;
 
+    public ReportesRestController(ReportesService reporteService, WebClient.Builder webClientBuilder) {
+        this.reporteService = reporteService;
+        this.webClientBuilder = webClientBuilder;
+    }
+
     @PostMapping
-    public ResponseEntity<Reportes> crearReporte(@RequestBody Reportes reportes) {
+    public ResponseEntity<Reportes> crearReporte(@RequestBody CrearReporteDTO dto) {
         try {
+            Reportes reportes = new Reportes();
+            reportes.setUsuarioId(dto.getUsuarioId());
+            reportes.setMascotaId(dto.getMascotaId());
+            reportes.setDescripcion(dto.getDescripcion());
+            reportes.setTelefono(dto.getTelefono());
+            reportes.setUbicacion(dto.getUbicacion());
+            reportes.setImg(dto.getImg());
+            reportes.setEstado(dto.getEstado());
+            reportes.setFechaReporte(dto.getFechaReporte());
             Reportes reporteCreado = reporteService.creaReporte(reportes);
             return new ResponseEntity<>(reporteCreado, HttpStatus.CREATED);
         } catch (MascotaNoEncontradaException | UsuarioNoEncontradoException e) {
@@ -88,7 +102,15 @@ public class ReportesRestController {
     }
     
     @PutMapping("/{id}")
-    public ResponseEntity<Reportes> actualizarReporte(@PathVariable Long id, @RequestBody Reportes reporteActualizado){
+    public ResponseEntity<Reportes> actualizarReporte(@PathVariable Long id, @RequestBody ActualizarReporteDTO dto) {
+        Reportes reporteActualizado = new Reportes();
+        reporteActualizado.setUsuarioId(dto.getUsuarioId());
+        reporteActualizado.setMascotaId(dto.getMascotaId());
+        reporteActualizado.setDescripcion(dto.getDescripcion());
+        reporteActualizado.setTelefono(dto.getTelefono());
+        reporteActualizado.setUbicacion(dto.getUbicacion());
+        reporteActualizado.setImg(dto.getImg());
+        reporteActualizado.setEstado(dto.getEstado());
         Reportes reportes = reporteService.actualizarReporte(id, reporteActualizado);
         return ResponseEntity.ok(reportes);
     }
@@ -137,9 +159,9 @@ public class ReportesRestController {
 
 
     @PostMapping("/upload-image")
-    public ResponseEntity<?> uploadImage(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<Map<String, Object>> uploadImage(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "No file uploaded"));
+            return ResponseEntity.badRequest().body(Map.of(ERROR_KEY, "No file uploaded"));
         }
         try {
             AwsBasicCredentials creds = AwsBasicCredentials.create(r2AccessKey, r2SecretKey);
@@ -160,21 +182,20 @@ public class ReportesRestController {
                     software.amazon.awssdk.core.sync.RequestBody.fromBytes(file.getBytes())
                 );
 
-                // Usar la URL pública del bucket R2
                 String publicUrl = "https://pub-daffd7e8a85c4df4a96cdc1e8f6b61e8.r2.dev/" + key;
-                return ResponseEntity.ok(java.util.Map.of("url", publicUrl));
+                return ResponseEntity.ok(Map.of("url", publicUrl));
         } catch (S3Exception e) {
-            return ResponseEntity.status(500).body(java.util.Map.of("error", "R2 error", "details", e.awsErrorDetails().errorMessage()));
+            return ResponseEntity.status(500).body(Map.of(ERROR_KEY, "R2 error", "details", e.awsErrorDetails().errorMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(java.util.Map.of("error", "Internal server error", "details", e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of(ERROR_KEY, "Internal server error", "details", e.getMessage()));
         }
     }
 
     @GetMapping("/detalle/{id}")
-    public ResponseEntity<?> obtenerReporteDetalle(@PathVariable Long id) {
+    public ResponseEntity<Object> obtenerReporteDetalle(@PathVariable Long id) {
         Optional<Reportes> reporteOpt = reporteService.obtenerReportePorId(id);
         if (reporteOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Reporte no encontrado"));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(ERROR_KEY, "Reporte no encontrado"));
         }
         Reportes reporte = reporteOpt.get();
         Object usuario = null;

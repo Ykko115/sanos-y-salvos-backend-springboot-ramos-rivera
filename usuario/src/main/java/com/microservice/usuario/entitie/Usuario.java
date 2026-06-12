@@ -2,7 +2,7 @@ package com.microservice.usuario.entitie;
 
 import java.util.List;
 
-import com.microservice.usuario.entitie.dto.Mascotas;
+import com.microservice.usuario.entitie.dto.MascotaDTO;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -39,7 +39,7 @@ public class Usuario {
     private Rol rol;
 
     @Transient
-    private List<Mascotas> mascotas;
+    private List<MascotaDTO> mascotas;
    
     @Override
     public String toString(){

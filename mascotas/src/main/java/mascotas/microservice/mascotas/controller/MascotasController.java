@@ -6,7 +6,6 @@ import mascotas.microservice.mascotas.service.MascotasService;
 import mascotas.microservice.mascotas.dto.UsuarioDTO;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,17 +21,19 @@ import java.util.Optional;
 @CrossOrigin(origins = "http://localhost:5173")
 public class MascotasController {
 
-    @Autowired
-    private MascotasService mascotasService;
-
-    @Autowired
-    private WebClient.Builder webClientBuilder;
+    private final MascotasService mascotasService;
+    private final WebClient.Builder webClientBuilder;
 
     @Value("${usuario.service.urls:http://usuario:8081}")
     private String usuarioServiceUrls;
 
     @Value("${internal.jwt:}")
     private String internalJwt;
+
+    public MascotasController(MascotasService mascotasService, WebClient.Builder webClientBuilder) {
+        this.mascotasService = mascotasService;
+        this.webClientBuilder = webClientBuilder;
+    }
 
     private UsuarioDTO obtenerUsuarioDesdeCualquierUrl(Long usuarioId) {
         for (String baseUrl : Arrays.asList(usuarioServiceUrls.split(","))) {
@@ -76,7 +77,7 @@ public class MascotasController {
 
     // ── GET /api/mascotas ──────────────────────────────────────────
     @GetMapping
-    public ResponseEntity<?> obtenerTodasLasMascotas(
+    public ResponseEntity<Object> obtenerTodasLasMascotas(
             @RequestParam(required = false) String estado) {
         try {
             List<Mascotas> mascotas;
@@ -101,7 +102,7 @@ public class MascotasController {
 
     // ── GET /api/mascotas/{id} ─────────────────────────────────────
     @GetMapping("/{id}")
-    public ResponseEntity<?> obtenerMascotaPorId(@PathVariable Long id) {
+    public ResponseEntity<Object> obtenerMascotaPorId(@PathVariable Long id) {
         Optional<Mascotas> mascotaOpt = mascotasService.obtenerMascotaPorId(id);
         if (mascotaOpt.isEmpty()) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         Mascotas mascota = mascotaOpt.get();
@@ -135,7 +136,7 @@ public class MascotasController {
 
     // ── PUT /api/mascotas/{id}/estado ──────────────────────────────
     @PutMapping("/{id}/estado")
-    public ResponseEntity<?> actualizarEstado(
+    public ResponseEntity<Object> actualizarEstado(
             @PathVariable Long id,
             @RequestBody Map<String, String> body) {
         try {

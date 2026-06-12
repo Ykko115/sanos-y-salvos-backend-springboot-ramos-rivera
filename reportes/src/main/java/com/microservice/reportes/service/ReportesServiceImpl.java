@@ -5,16 +5,11 @@ import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import com.microservice.reportes.client.ServicioValidacionClient;
 import com.microservice.reportes.entity.Reportes;
-import com.microservice.reportes.exception.MascotaNoEncontradaException;
-import com.microservice.reportes.exception.UsuarioNoEncontradoException;
 import com.microservice.reportes.repository.ReportesRepository;
 
 @Service
@@ -24,61 +19,29 @@ public class ReportesServiceImpl  implements ReportesService{
     private static final Logger logger = LoggerFactory.getLogger(ReportesServiceImpl.class);
 
 
-    @Autowired
-    private ReportesRepository reportesRepository;
+    private final ReportesRepository reportesRepository;
+    private final ServicioValidacionClient servicioValidacionClient;
 
-    @Autowired
-    private WebClient.Builder webClientBuilder;
-
-    @Value("${mascotas.service.url}")
-    private String mascotasServiceUrl;
-
-    @Value("${usuario.service.urls}")
-    private String usuariosServiceUrl;
+    public ReportesServiceImpl(ReportesRepository reportesRepository,
+                               ServicioValidacionClient servicioValidacionClient) {
+        this.reportesRepository = reportesRepository;
+        this.servicioValidacionClient = servicioValidacionClient;
+    }
 
     @Override
     public Reportes creaReporte(Reportes reportes) {
 
         logger.info("Iniciando creación de reporte: {}", reportes);
 
-        // Solo validar mascota si viene un mascotaId (reporte autenticado)
+        // Solo validar mascota si viene un mascotaId (reporte autenticado).
+        // La validación remota está protegida por un Circuit Breaker (Resilience4j).
         if (reportes.getMascotaId() != null) {
-            logger.info("Validando existencia de mascota con id: {}", reportes.getMascotaId());
-            try {
-                webClientBuilder.build()
-                        .get()
-                        .uri(mascotasServiceUrl + "/api/mascotas/" + reportes.getMascotaId())
-                        .retrieve()
-                        .bodyToMono(Object.class)
-                        .block();
-                logger.info("Mascota encontrada correctamente");
-            } catch (WebClientResponseException.NotFound e) {
-                logger.warn("Mascota no encontrada: {}", reportes.getMascotaId());
-                throw new MascotaNoEncontradaException("La mascota con id " + reportes.getMascotaId() + " no existe");
-            } catch (WebClientResponseException e) {
-                logger.error("Error al consultar el servicio de mascotas: {}", e.getMessage());
-                throw new RuntimeException("Error al consultar el servicio de mascotas: " + e.getMessage());
-            }
+            servicioValidacionClient.validarMascotaExiste(reportes.getMascotaId());
         }
 
-        // Solo validar usuario si viene un usuarioId
+        // Solo validar usuario si viene un usuarioId (protegido por Circuit Breaker).
         if (reportes.getUsuarioId() != null) {
-            logger.info("Validando existencia de usuario con id: {}", reportes.getUsuarioId());
-            try {
-                webClientBuilder.build()
-                        .get()
-                        .uri(usuariosServiceUrl + "/api/usuario/" + reportes.getUsuarioId())
-                        .retrieve()
-                        .bodyToMono(Object.class)
-                        .block();
-                logger.info("Usuario encontrado correctamente");
-            } catch (WebClientResponseException.NotFound e) {
-                logger.warn("Usuario no encontrado: {}", reportes.getUsuarioId());
-                throw new UsuarioNoEncontradoException("El usuario con id " + reportes.getUsuarioId() + " no existe");
-            } catch (WebClientResponseException e) {
-                logger.error("Error al consultar el servicio de usuarios: {}", e.getMessage());
-                throw new RuntimeException("Error al consultar el servicio de usuarios: " + e.getMessage());
-            }
+            servicioValidacionClient.validarUsuarioExiste(reportes.getUsuarioId());
         }
 
         logger.info("Guardando reporte en base de datos");

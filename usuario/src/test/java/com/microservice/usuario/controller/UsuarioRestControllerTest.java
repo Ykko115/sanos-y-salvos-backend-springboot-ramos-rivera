@@ -1,8 +1,10 @@
 package com.microservice.usuario.controller;
 
-import com.gateway.apigateway.security.JwtUtil;
 import com.microservice.usuario.entitie.Usuario;
+import com.microservice.usuario.entitie.dto.ActualizarUsuarioDTO;
+import com.microservice.usuario.entitie.dto.CrearUsuarioDTO;
 import com.microservice.usuario.service.UsuarioService;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +23,9 @@ import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import com.microservice.usuario.security.JwtUtil;
+
 
 @WebMvcTest(UsuarioRestController.class)
 class UsuarioRestControllerTest {
@@ -104,7 +109,7 @@ class UsuarioRestControllerTest {
     @WithMockUser
     void crear_usuarioValido_debeRetornar200() throws Exception {
         when(jwtUtil.generateToken(anyString(), anyList())).thenReturn("token.jwt.test");
-        when(usuarioService.crear(any(Usuario.class))).thenReturn(usuario);
+        when(usuarioService.crear(any(CrearUsuarioDTO.class))).thenReturn(usuario);
 
         mockMvc.perform(post("/api/usuario")
                 .with(csrf())
@@ -118,7 +123,7 @@ class UsuarioRestControllerTest {
     @WithMockUser
     void crear_emailDuplicado_debeRetornar400() throws Exception {
         when(jwtUtil.generateToken(anyString(), anyList())).thenReturn("token");
-        when(usuarioService.crear(any(Usuario.class)))
+        when(usuarioService.crear(any(CrearUsuarioDTO.class)))
             .thenThrow(new IllegalArgumentException("el Email ya ah sido registrado"));
 
         mockMvc.perform(post("/api/usuario")
@@ -202,7 +207,7 @@ class UsuarioRestControllerTest {
     @Test
     @WithMockUser
     void actualizar_existente_debeRetornar200() throws Exception {
-        when(usuarioService.actualizar(eq(1L), any(Usuario.class))).thenReturn(usuario);
+        when(usuarioService.actualizar(eq(1L), any(ActualizarUsuarioDTO.class))).thenReturn(usuario);
 
         mockMvc.perform(put("/api/usuario/1")
                 .with(csrf())
