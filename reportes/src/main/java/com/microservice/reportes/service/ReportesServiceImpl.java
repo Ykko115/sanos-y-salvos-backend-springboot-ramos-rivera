@@ -5,7 +5,6 @@ import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,11 +19,14 @@ public class ReportesServiceImpl  implements ReportesService{
     private static final Logger logger = LoggerFactory.getLogger(ReportesServiceImpl.class);
 
 
-    @Autowired
-    private ReportesRepository reportesRepository;
+    private final ReportesRepository reportesRepository;
+    private final ServicioValidacionClient servicioValidacionClient;
 
-    @Autowired
-    private ServicioValidacionClient servicioValidacionClient;
+    public ReportesServiceImpl(ReportesRepository reportesRepository,
+                               ServicioValidacionClient servicioValidacionClient) {
+        this.reportesRepository = reportesRepository;
+        this.servicioValidacionClient = servicioValidacionClient;
+    }
 
     @Override
     public Reportes creaReporte(Reportes reportes) {

@@ -10,7 +10,6 @@ import mascotas.microservice.mascotas.entity.Mascotas;
 import mascotas.microservice.mascotas.exception.ServicioNoDisponibleException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
@@ -30,11 +29,14 @@ public class MascotaMatcherClient {
     /** Nombre de la instancia de Circuit Breaker (ver application.properties). */
     private static final String CB_FASTAPI = "fastapiMatcher";
 
-    @Autowired
-    private WebClient.Builder webClientBuilder;
+    private final WebClient.Builder webClientBuilder;
 
     @Value("${fastapi.url:http://localhost:8000}")
     private String fastapiUrl;
+
+    public MascotaMatcherClient(WebClient.Builder webClientBuilder) {
+        this.webClientBuilder = webClientBuilder;
+    }
 
     // ── DTOs internos que mapean a MascotaInput y MatchRequest de FastAPI ──────
 
@@ -122,6 +124,7 @@ public class MascotaMatcherClient {
      * un 503; el llamador ({@code MascotasServiceImpl}) ya captura este error de
      * forma que el registro de la mascota nunca se vea afectado.
      */
+    @SuppressWarnings("java:S1172")
     public List<MatchResultDTO> buscarCoincidenciasFallback(Mascotas mascotaReportada,
                                                             List<Mascotas> candidatas,
                                                             Throwable t) {

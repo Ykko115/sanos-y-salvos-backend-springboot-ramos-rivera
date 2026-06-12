@@ -11,9 +11,7 @@ services:
       - "5432:5432"
 
   usuario:
-    build:
-      context: .
-      dockerfile: usuario/Dockerfile
+    build: ./usuario
     environment:
       DB_HOST: postgres
       DB_PORT: 5432

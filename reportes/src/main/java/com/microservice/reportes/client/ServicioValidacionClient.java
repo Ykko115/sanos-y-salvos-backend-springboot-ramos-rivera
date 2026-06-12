@@ -2,7 +2,6 @@ package com.microservice.reportes.client;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -29,14 +28,17 @@ public class ServicioValidacionClient {
 
     private static final Logger logger = LoggerFactory.getLogger(ServicioValidacionClient.class);
 
-    @Autowired
-    private WebClient.Builder webClientBuilder;
+    private final WebClient.Builder webClientBuilder;
 
     @Value("${mascotas.service.url}")
     private String mascotasServiceUrl;
 
     @Value("${usuario.service.urls}")
     private String usuariosServiceUrl;
+
+    public ServicioValidacionClient(WebClient.Builder webClientBuilder) {
+        this.webClientBuilder = webClientBuilder;
+    }
 
     // ───────────────────────────── Mascotas ─────────────────────────────
 
@@ -57,6 +59,7 @@ public class ServicioValidacionClient {
         }
     }
 
+    @SuppressWarnings("java:S1172")
     public void validarMascotaFallback(Long mascotaId, Throwable t) {
         // Errores de negocio / estado HTTP: la conexión funcionó, se re-lanzan.
         if (t instanceof MascotaNoEncontradaException) {
@@ -90,6 +93,7 @@ public class ServicioValidacionClient {
         }
     }
 
+    @SuppressWarnings("java:S1172")
     public void validarUsuarioFallback(Long usuarioId, Throwable t) {
         if (t instanceof UsuarioNoEncontradoException) {
             throw (UsuarioNoEncontradoException) t;

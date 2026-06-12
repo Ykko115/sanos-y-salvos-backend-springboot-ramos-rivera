@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
  
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -22,7 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
  
-import com.gateway.apigateway.security.JwtUtil;
+import com.microservice.usuario.security.JwtUtil;
 import com.microservice.usuario.entitie.Usuario;
 import com.microservice.usuario.entitie.dto.ActualizarUsuarioDTO;
 import com.microservice.usuario.entitie.dto.CrearUsuarioDTO;
@@ -39,20 +38,23 @@ public class UsuarioRestController {
     private static final String ROLE_USER   = "ROLE_USER";
     private static final String ERROR_KEY   = "error";
  
-    @Autowired
-    private UsuarioService usuarioService;
- 
-    @Autowired
-    private JwtUtil jwtUtil;
- 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
- 
-    @Autowired
-    private WebClient.Builder webClientBuilder;
- 
+    private final UsuarioService usuarioService;
+    private final JwtUtil jwtUtil;
+    private final PasswordEncoder passwordEncoder;
+    private final WebClient.Builder webClientBuilder;
+
     @Value("${mascotas.service.url:http://mascotas:8082}")
     private String mascotasServiceUrl;
+
+    public UsuarioRestController(UsuarioService usuarioService,
+                                 JwtUtil jwtUtil,
+                                 PasswordEncoder passwordEncoder,
+                                 WebClient.Builder webClientBuilder) {
+        this.usuarioService = usuarioService;
+        this.jwtUtil = jwtUtil;
+        this.passwordEncoder = passwordEncoder;
+        this.webClientBuilder = webClientBuilder;
+    }
  
     // DTO para login
     public static class LoginRequest {

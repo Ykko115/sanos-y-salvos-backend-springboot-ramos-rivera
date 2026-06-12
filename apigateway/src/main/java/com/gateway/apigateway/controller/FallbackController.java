@@ -25,7 +25,7 @@ public class FallbackController {
             "error", "Service Unavailable",
             "service", servicio,
             "message", "El servicio '" + servicio + "' no está disponible en este momento "
-                + "(circuit breaker abierto). Por favor, intenta nuevamente más tarde."
+                + "Por favor, intenta nuevamente más tarde."
         );
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(body);
     }

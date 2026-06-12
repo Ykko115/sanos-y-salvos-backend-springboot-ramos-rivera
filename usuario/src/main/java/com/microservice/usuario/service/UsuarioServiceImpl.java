@@ -2,7 +2,6 @@ package com.microservice.usuario.service;
  
 import java.util.List;
  
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
  
@@ -15,14 +14,17 @@ import com.microservice.usuario.repository.UsuarioRepository;
 @Service
 public class UsuarioServiceImpl implements UsuarioService {
     
-    @Autowired
-    private UsuarioRepository usuarioRepository;
- 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
- 
-    @Autowired
-    private MascotasClientService mascotasClientService;
+    private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final MascotasClientService mascotasClientService;
+
+    public UsuarioServiceImpl(UsuarioRepository usuarioRepository,
+                              PasswordEncoder passwordEncoder,
+                              MascotasClientService mascotasClientService) {
+        this.usuarioRepository = usuarioRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.mascotasClientService = mascotasClientService;
+    }
  
     @Override
     public Usuario crear(CrearUsuarioDTO dto) {
