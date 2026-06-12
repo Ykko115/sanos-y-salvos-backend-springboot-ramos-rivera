@@ -3,8 +3,6 @@ package mascotas.microservice.mascotas.client;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -94,7 +92,7 @@ public class MascotaMatcherClient {
 
         MatchRequestBody body = new MatchRequestBody(
             toDTO(mascotaReportada),
-            candidatas.stream().map(this::toDTO).collect(Collectors.toList())
+            candidatas.stream().map(this::toDTO).toList()
         );
 
         List<MatchResultDTO> resultado = webClientBuilder.build()
@@ -115,7 +113,7 @@ public class MascotaMatcherClient {
                                                             List<Mascotas> candidatas,
                                                             Throwable t) {
         logger.error("Circuit breaker '{}' activo o fallo de conexión con el motor de "
-            + "coincidencias FastAPI: {}", CB_FASTAPI, t.toString());
+            + "coincidencias FastAPI: {}", CB_FASTAPI, t.getMessage());
         throw new ServicioNoDisponibleException(
             "El motor de coincidencias (FastAPI) no está disponible en este momento.", t);
     }

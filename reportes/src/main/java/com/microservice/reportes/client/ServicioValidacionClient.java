@@ -56,10 +56,9 @@ public class ServicioValidacionClient {
             throw (MascotaNoEncontradaException) t;
         }
         if (t instanceof WebClientResponseException) {
-            throw new RuntimeException("Error al consultar el servicio de mascotas: " + t.getMessage());
+            throw new ServicioNoDisponibleException("Error al consultar el servicio de mascotas: " + t.getMessage(), t);
         }
-        // Fallo de conexión o Circuit Breaker ABIERTO: se falla rápido con 503.
-        logger.error("Circuit breaker 'mascotasService' activo o servicio no disponible: {}", t.toString());
+        logger.error("Circuit breaker 'mascotasService' activo o servicio no disponible: {}", t.getMessage());
         throw new ServicioNoDisponibleException(
             "El servicio de mascotas no está disponible en este momento. Intenta más tarde.", t);
     }
@@ -89,9 +88,9 @@ public class ServicioValidacionClient {
             throw (UsuarioNoEncontradoException) t;
         }
         if (t instanceof WebClientResponseException) {
-            throw new RuntimeException("Error al consultar el servicio de usuarios: " + t.getMessage());
+            throw new ServicioNoDisponibleException("Error al consultar el servicio de usuarios: " + t.getMessage(), t);
         }
-        logger.error("Circuit breaker 'usuarioService' activo o servicio no disponible: {}", t.toString());
+        logger.error("Circuit breaker 'usuarioService' activo o servicio no disponible: {}", t.getMessage());
         throw new ServicioNoDisponibleException(
             "El servicio de usuarios no está disponible en este momento. Intenta más tarde.", t);
     }

@@ -39,13 +39,13 @@ public class MascotasClientService {
     }
 
     
+    @SuppressWarnings("java:S1172")
     public List<MascotaDTO> obtenerMascotasPorUsuarioIdFallback(Long usuarioId, Throwable t) {
-        // Un error de estado HTTP significa que la conexión sí funcionó: se re-lanza.
         if (t instanceof RestClientResponseException) {
             throw (RestClientResponseException) t;
         }
-        logger.error("Circuit breaker '{}' activo o fallo de conexión con el servicio "
-            + "de mascotas: {}", CB_MASCOTAS, t.toString());
+        logger.error("Circuit breaker '{}' activo o fallo de conexión con el servicio de mascotas: {}",
+            CB_MASCOTAS, t.getMessage());
         throw new ServicioNoDisponibleException(
             "El servicio de mascotas no está disponible en este momento.", t);
     }

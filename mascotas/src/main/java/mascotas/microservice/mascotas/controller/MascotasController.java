@@ -45,7 +45,7 @@ public class MascotasController {
                     request = request.header(HttpHeaders.AUTHORIZATION, internalJwt);
                 }
                 return request.retrieve().bodyToMono(UsuarioDTO.class).block();
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) { /* usuario service unavailable — skip enrichment */ }
         }
         return null;
     }

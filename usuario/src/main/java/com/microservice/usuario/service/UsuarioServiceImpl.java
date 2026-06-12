@@ -1,7 +1,8 @@
 package com.microservice.usuario.service;
  
 import java.util.List;
- 
+import java.util.NoSuchElementException;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
  
@@ -58,7 +59,7 @@ public class UsuarioServiceImpl implements UsuarioService {
                 String hashed = passwordEncoder.encode(dto.getPassword());
                 usuario.setPassword(hashed);
             } catch (Exception ex) {
-                throw new RuntimeException("Error hashing password", ex);
+                throw new IllegalStateException("Error hashing password", ex);
             }
         }
         return usuarioRepository.save(usuario);
@@ -79,7 +80,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Override
     public Usuario ObtenerPorId(Long id){
         return usuarioRepository.findById(id)
-        .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado"));
     } 
  
     @Override
@@ -98,7 +99,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Override
     public void eliminar(Long id){
         if(!usuarioRepository.existsById(id)){
-            throw new RuntimeException("Usuario no encontrado");
+            throw new NoSuchElementException("Usuario no encontrado");
         }
         usuarioRepository.deleteById(id);
     }
@@ -109,7 +110,7 @@ public class UsuarioServiceImpl implements UsuarioService {
         try {
             usuario.setPassword(passwordEncoder.encode(dto.getPassword()));
         } catch (Exception ex) {
-            throw new RuntimeException("Error hashing password", ex);
+            throw new IllegalStateException("Error hashing password", ex);
         }
     }
  
@@ -125,8 +126,16 @@ public class UsuarioServiceImpl implements UsuarioService {
         if (dto.getTelefono() != null && dto.getTelefono() != 0) usuario.setTelefono(dto.getTelefono());
  
         aplicarPasswordSiPresente(dto, usuario);
- 
-        // rol y activo NO se actualizan desde este DTO para evitar escalada de privilegios
+
+        if (dto.getRol() != null) {
+            try {
+                usuario.setRol(Usuario.Rol.valueOf(dto.getRol().toUpperCase()));
+            } catch (IllegalArgumentException ignored) { /* rol inválido → no cambiar */ }
+        }
+        if (dto.getActivo() != null) {
+            usuario.setActivo(dto.getActivo());
+        }
+
         return usuarioRepository.save(usuario);
     }
  

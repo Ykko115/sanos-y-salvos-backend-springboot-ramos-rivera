@@ -1,6 +1,7 @@
 package com.microservice.reportes.service;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -80,7 +81,7 @@ public class ReportesServiceImpl  implements ReportesService{
             return reportesRepository.save(reporteActualizado);
         }
 
-        throw new RuntimeException("Reporte no encontrado por la id: "+ id);
+        throw new NoSuchElementException("Reporte no encontrado por la id: " + id);
     }
 
     @Override
@@ -88,7 +89,7 @@ public class ReportesServiceImpl  implements ReportesService{
         if(reportesRepository.existsById(id)){
             reportesRepository.deleteById(id);
         } else {
-            throw new RuntimeException("Reporte no ha sido encontrado");
+            throw new NoSuchElementException("Reporte no ha sido encontrado");
         }
     }
 
