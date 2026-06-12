@@ -1,15 +1,16 @@
 package mascotas.microservice.mascotas.service;
 
-import mascotas.microservice.mascotas.dto.MatchResultDTO;
-import mascotas.microservice.mascotas.entity.Mascotas;
-import mascotas.microservice.mascotas.entity.NotificacionMatch;
-import mascotas.microservice.mascotas.repository.NotificacionMatchRepository;
+import java.time.LocalDateTime;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import mascotas.microservice.mascotas.dto.MatchResultDTO;
+import mascotas.microservice.mascotas.entity.Mascotas;
+import mascotas.microservice.mascotas.entity.NotificacionMatch;
+import mascotas.microservice.mascotas.repository.NotificacionMatchRepository;
 
 @Service
 public class NotificacionMatchService {
@@ -21,9 +22,6 @@ public class NotificacionMatchService {
 
     /**
      * Guarda la coincidencia en la tabla notificaciones_match y loggea el evento.
-     *
-     * @param mascotaUsuario la mascota del usuario (recién reportada)
-     * @param resultado      resultado del motor de coincidencias con score >= umbral
      */
     public void notificarCoincidencia(Mascotas mascotaUsuario, MatchResultDTO resultado) {
         try {

@@ -58,13 +58,12 @@ services:
       - mascotas
       - reportes
 
-  # ── SonarQube ──────────────────────────────────────────────────
   db-sonarqube:
     image: postgres:16-alpine
     container_name: db-sonarqube
     environment:
-      POSTGRES_USER: sonar           # ✅ corregido: debe coincidir con SONAR_JDBC_USERNAME
-      POSTGRES_PASSWORD: sonar_1234  # ✅ corregido: debe coincidir con SONAR_JDBC_PASSWORD
+      POSTGRES_USER: sonar           
+      POSTGRES_PASSWORD: sonar_1234  
       POSTGRES_DB: sonar
     volumes:
       - sonar-db-data:/var/lib/postgresql/data
@@ -75,8 +74,8 @@ services:
     depends_on:
       - db-sonarqube
     environment:
-      SONAR_JDBC_USERNAME: sonar          # ✅ ahora coincide
-      SONAR_JDBC_PASSWORD: sonar_1234     # ✅ ahora coincide
+      SONAR_JDBC_USERNAME: sonar          
+      SONAR_JDBC_PASSWORD: sonar_1234     
       SONAR_JDBC_URL: jdbc:postgresql://db-sonarqube:5432/sonar
     ports:
       - "9000:9000"

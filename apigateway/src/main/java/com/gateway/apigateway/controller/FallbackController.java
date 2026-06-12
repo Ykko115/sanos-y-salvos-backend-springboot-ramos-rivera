@@ -8,12 +8,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Destino de los {@code fallbackUri} configurados en los filtros CircuitBreaker
- * del Gateway. Cuando el circuito de una ruta está ABIERTO (o el backend no
- * responde), la petición se reenvía aquí y se devuelve un 503 limpio en lugar
- * de propagar el error del backend caído.
- */
 @RestController
 @RequestMapping("/fallback")
 public class FallbackController {

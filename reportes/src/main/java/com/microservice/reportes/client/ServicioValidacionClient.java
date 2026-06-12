@@ -13,16 +13,6 @@ import com.microservice.reportes.exception.UsuarioNoEncontradoException;
 
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 
-/**
- * Encapsula las llamadas HTTP del microservicio de reportes hacia los servicios
- * de mascotas y usuarios. Vive en un bean independiente (no en el Service) para
- * que el proxy AOP de Resilience4j intercepte las llamadas: la anotación
- * {@code @CircuitBreaker} NO funciona en auto-invocaciones dentro de la misma clase.
- *
- * Cada método está protegido por su propia instancia de Circuit Breaker. El
- * circuito se ABRE tras 5 errores de CONEXIÓN consecutivos; los errores de
- * negocio (404) o de estado HTTP no abren el circuito y se re-lanzan tal cual.
- */
 @Component
 public class ServicioValidacionClient {
 

@@ -1,13 +1,10 @@
 package mascotas.microservice.mascotas.client;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import mascotas.microservice.mascotas.dto.MatchResultDTO;
-import mascotas.microservice.mascotas.entity.Mascotas;
-import mascotas.microservice.mascotas.exception.ServicioNoDisponibleException;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,10 +13,15 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.time.Duration;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import mascotas.microservice.mascotas.dto.MatchResultDTO;
+import mascotas.microservice.mascotas.entity.Mascotas;
+import mascotas.microservice.mascotas.exception.ServicioNoDisponibleException;
 
 @Service
 public class MascotaMatcherClient {
@@ -82,16 +84,6 @@ public class MascotaMatcherClient {
 
     /**
      * Llama a POST /api/match en el microservicio FastAPI.
-     *
-     * Está protegido por el Circuit Breaker de Resilience4j "fastapiMatcher":
-     * si se acumulan 5 errores de conexión consecutivos el circuito se ABRE y
-     * las llamadas siguientes fallan de inmediato a través de
-     * {@link #buscarCoincidenciasFallback}. Los errores de conexión se propagan
-     * (ya no se silencian aquí) para que el Circuit Breaker pueda contabilizarlos.
-     *
-     * @param mascotaReportada mascota recién guardada en la DB
-     * @param candidatas       mascotas con estado opuesto de la misma especie
-     * @return resultados ordenados por score desc
      */
     @CircuitBreaker(name = CB_FASTAPI, fallbackMethod = "buscarCoincidenciasFallback")
     public List<MatchResultDTO> buscarCoincidencias(Mascotas mascotaReportada,
@@ -118,12 +110,6 @@ public class MascotaMatcherClient {
         return resultado != null ? resultado : Collections.emptyList();
     }
 
-    /**
-     * Método de respaldo que invoca Resilience4j cuando el circuito está ABIERTO
-     * o cuando se produce un error de conexión con FastAPI. Se falla rápido con
-     * un 503; el llamador ({@code MascotasServiceImpl}) ya captura este error de
-     * forma que el registro de la mascota nunca se vea afectado.
-     */
     @SuppressWarnings("java:S1172")
     public List<MatchResultDTO> buscarCoincidenciasFallback(Mascotas mascotaReportada,
                                                             List<Mascotas> candidatas,
