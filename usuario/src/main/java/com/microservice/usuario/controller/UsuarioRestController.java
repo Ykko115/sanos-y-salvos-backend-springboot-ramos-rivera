@@ -55,18 +55,18 @@ public class UsuarioRestController {
         this.passwordEncoder = passwordEncoder;
         this.webClientBuilder = webClientBuilder;
     }
-
+ 
     // DTO para login
     public static class LoginRequest {
         private String email;
         private String password;
-
+ 
         public String getEmail() { return email; }
         public void setEmail(String email) { this.email = email; }
         public String getPassword() { return password; }
         public void setPassword(String password) { this.password = password; }
     }
-
+ 
     // DTO de respuesta enriquecida
     public static class UsuarioConMascotasResponse {
         private final Usuario usuario;
