@@ -1,16 +1,16 @@
 services:
   usuario:
     build: ./usuario
-    image: ${DOCKER_HUB_USER:-nyko115}/sanos-salvos-usuario:${IMAGE_TAG:-latest}
+    image: ${DOCKER_HUB_USER:-nyko115}/sanos-y-salvos-backend:usuario-${IMAGE_TAG:-latest}
 
   mascotas:
     build: ./mascotas
-    image: ${DOCKER_HUB_USER:-nyko115}/sanos-salvos-mascotas:${IMAGE_TAG:-latest}
+    image: ${DOCKER_HUB_USER:-nyko115}/sanos-y-salvos-backend:mascotas-${IMAGE_TAG:-latest}
 
   reportes:
     build: ./reportes
-    image: ${DOCKER_HUB_USER:-nyko115}/sanos-salvos-reportes:${IMAGE_TAG:-latest}
+    image: ${DOCKER_HUB_USER:-nyko115}/sanos-y-salvos-backend:reportes-${IMAGE_TAG:-latest}
 
   apigateway:
     build: ./apigateway
-    image: ${DOCKER_HUB_USER:-nyko115}/sanos-salvos-apigateway:${IMAGE_TAG:-latest}
+    image: ${DOCKER_HUB_USER:-nyko115}/sanos-y-salvos-backend:apigateway-${IMAGE_TAG:-latest}
