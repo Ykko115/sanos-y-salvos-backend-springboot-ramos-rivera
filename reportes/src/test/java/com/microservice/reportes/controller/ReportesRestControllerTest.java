@@ -7,8 +7,11 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -20,6 +23,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -27,6 +31,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import com.microservice.reportes.entity.Reportes;
 import com.microservice.reportes.entity.Reportes.Estado;
 import com.microservice.reportes.service.ReportesService;
+import reactor.core.publisher.Mono;
 
 @WebMvcTest(ReportesRestController.class)
 class ReportesRestControllerTest {
@@ -159,5 +164,61 @@ class ReportesRestControllerTest {
         mockMvc.perform(get("/api/reportes/mascota/3"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    @WithMockUser
+    void actualizarReporte_existente_debeRetornar200() throws Exception {
+        when(reportesService.actualizarReporte(anyLong(), any(Reportes.class))).thenReturn(reporte);
+
+        mockMvc.perform(put("/api/reportes/1")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(toJson(reporte)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.nombre_mascota").value("Fido"));
+    }
+
+    @Test
+    @WithMockUser
+    void obtenerReporteDetalle_inexistente_debeRetornar404() throws Exception {
+        when(reportesService.obtenerReportePorId(999L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/reportes/detalle/999"))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser
+    void obtenerReporteDetalle_existente_debeRetornar200() throws Exception {
+        reporte.setUsuarioId(1L);
+        reporte.setMascotaId(1L);
+        when(reportesService.obtenerReportePorId(1L)).thenReturn(Optional.of(reporte));
+
+        WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
+        when(responseSpec.bodyToMono(Object.class)).thenReturn(Mono.empty());
+        @SuppressWarnings("rawtypes")
+        WebClient.RequestHeadersSpec headersSpec = mock(WebClient.RequestHeadersSpec.class);
+        when(headersSpec.retrieve()).thenReturn(responseSpec);
+        @SuppressWarnings("rawtypes")
+        WebClient.RequestHeadersUriSpec uriSpec = mock(WebClient.RequestHeadersUriSpec.class);
+        when(uriSpec.uri(anyString())).thenReturn(headersSpec);
+        WebClient webClientMock = mock(WebClient.class);
+        when(webClientMock.get()).thenReturn(uriSpec);
+        when(webClientBuilder.build()).thenReturn(webClientMock);
+
+        mockMvc.perform(get("/api/reportes/detalle/1"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser
+    void obtenerReporteDetalle_sinIds_debeRetornar200() throws Exception {
+        reporte.setUsuarioId(null);
+        reporte.setMascotaId(null);
+        when(reportesService.obtenerReportePorId(1L)).thenReturn(Optional.of(reporte));
+
+        mockMvc.perform(get("/api/reportes/detalle/1"))
+            .andExpect(status().isOk());
     }
 }
