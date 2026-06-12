@@ -2,8 +2,8 @@ services:
   postgres:
     image: postgres:15
     environment:
-      POSTGRES_USER: user_adm
-      POSTGRES_PASSWORD: Nykolas2111
+      POSTGRES_USER: ${DB_USER:-user_adm}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-Nykolas2111}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./db:/docker-entrypoint-initdb.d:ro
@@ -11,46 +11,46 @@ services:
       - "5432:5432"
 
   usuario:
-    build: ./usuario
+    image: ${DOCKER_HUB_USER:-nyko115}/sanos-y-salvos-backend:usuario-${IMAGE_TAG:-latest}
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: usuario_db
-      DB_USER: user_adm
-      DB_PASSWORD: Nykolas2111
+      DB_USER: ${DB_USER:-user_adm}
+      DB_PASSWORD: ${DB_PASSWORD:-Nykolas2111}
     ports:
       - "8081:8081"
     depends_on:
       - postgres
 
   mascotas:
-    build: ./mascotas
+    image: ${DOCKER_HUB_USER:-nyko115}/sanos-y-salvos-backend:mascotas-${IMAGE_TAG:-latest}
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: mascotas_db
-      DB_USER: user_adm
-      DB_PASSWORD: Nykolas2111
+      DB_USER: ${DB_USER:-user_adm}
+      DB_PASSWORD: ${DB_PASSWORD:-Nykolas2111}
     ports:
       - "8082:8082"
     depends_on:
       - postgres
 
   reportes:
-    build: ./reportes
+    image: ${DOCKER_HUB_USER:-nyko115}/sanos-y-salvos-backend:reportes-${IMAGE_TAG:-latest}
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: reportes_db
-      DB_USER: user_adm
-      DB_PASSWORD: Nykolas2111
+      DB_USER: ${DB_USER:-user_adm}
+      DB_PASSWORD: ${DB_PASSWORD:-Nykolas2111}
     ports:
       - "8083:8083"
     depends_on:
       - postgres
 
   apigateway:
-    build: ./apigateway
+    image: ${DOCKER_HUB_USER:-nyko115}/sanos-y-salvos-backend:apigateway-${IMAGE_TAG:-latest}
     ports:
       - "8080:8080"
     depends_on:
