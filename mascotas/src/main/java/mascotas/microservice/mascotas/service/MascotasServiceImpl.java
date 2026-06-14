@@ -1,6 +1,7 @@
 package mascotas.microservice.mascotas.service;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -16,7 +17,6 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import mascotas.microservice.mascotas.client.MascotaMatcherClient;
 import mascotas.microservice.mascotas.dto.MatchResultDTO;
 import mascotas.microservice.mascotas.entity.Mascotas;
-import mascotas.microservice.mascotas.entity.Mascotas.Especie;
 import mascotas.microservice.mascotas.repository.MascotasRepository;
 
 @Service
@@ -28,8 +28,10 @@ public class MascotasServiceImpl implements MascotasService {
     @Autowired
     private MascotasRepository mascotasRepository;
 
-    @Autowired
-    private WebClient.Builder webClientBuilder;
+    private final MascotasRepository mascotasRepository;
+    private final WebClient.Builder webClientBuilder;
+    private final MascotaMatcherClient mascotaMatcherClient;
+    private final NotificacionMatchService notificacionMatchService;
 
     @Autowired
     private MascotaMatcherClient mascotaMatcherClient;
@@ -48,6 +50,15 @@ public class MascotasServiceImpl implements MascotasService {
 
     @Value("${reportes.service.url:http://reportes:8083}")
     private String reportesServiceUrl;
+    public MascotasServiceImpl(MascotasRepository mascotasRepository,
+                               WebClient.Builder webClientBuilder,
+                               MascotaMatcherClient mascotaMatcherClient,
+                               NotificacionMatchService notificacionMatchService) {
+        this.mascotasRepository = mascotasRepository;
+        this.webClientBuilder = webClientBuilder;
+        this.mascotaMatcherClient = mascotaMatcherClient;
+        this.notificacionMatchService = notificacionMatchService;
+    }
 
     @Override
     public Mascotas crearMascota(Mascotas mascota) {
@@ -86,7 +97,7 @@ public class MascotasServiceImpl implements MascotasService {
         if (mascotaNueva.getEspecie() == null || mascotaNueva.getEstado() == null) {
             return;
         }
-        // buscar mascotas con estado opuesto para comparar
+        // Buscar mascotas con estado opuesto y la misma especie
         Mascotas.Estado estadoOpuesto = mascotaNueva.getEstado() == Mascotas.Estado.PERDIDO
             ? Mascotas.Estado.ENCONTRADO
             : Mascotas.Estado.PERDIDO;
@@ -144,7 +155,6 @@ public class MascotasServiceImpl implements MascotasService {
             .orElseThrow(() -> new RuntimeException("Mascota no encontrada con id: " + id));
         mascota.setEstado(estado);
         Mascotas guardada = mascotasRepository.save(mascota);
-
         if (estado == Mascotas.Estado.PERDIDO) {
             kafkaProducerService.publicarMascotaPerdida(guardada);
         } else if (estado == Mascotas.Estado.ENCONTRADO) {
@@ -209,7 +219,7 @@ public class MascotasServiceImpl implements MascotasService {
             return mascotasRepository.save(m);
         }
 
-        throw new RuntimeException("Mascota no encontrada con id: " + id);
+        throw new NoSuchElementException("Mascota no encontrada con id: " + id);
     }
 
     @Override
@@ -217,7 +227,7 @@ public class MascotasServiceImpl implements MascotasService {
         if (mascotasRepository.existsById(id)) {
             mascotasRepository.deleteById(id);
         } else {
-            throw new RuntimeException("Mascota no encontrada con id: " + id);
+            throw new NoSuchElementException("Mascota no encontrada con id: " + id);
         }
     }
 

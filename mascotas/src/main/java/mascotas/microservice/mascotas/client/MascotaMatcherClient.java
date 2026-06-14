@@ -9,18 +9,19 @@ import mascotas.microservice.mascotas.entity.Mascotas;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
-
-import java.time.Duration;
-import java.util.Collections;
-import java.util.List;
 import java.util.stream.Collectors;
 import java.util.ArrayList;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import mascotas.microservice.mascotas.exception.ServicioNoDisponibleException;
 
 @Service
 public class MascotaMatcherClient {
@@ -29,9 +30,15 @@ public class MascotaMatcherClient {
 
     @Autowired
     private WebClient.Builder webClientBuilder;
+    /** Nombre de la instancia de Circuit Breaker (ver application.properties). */
+    private static final String CB_FASTAPI = "fastapiMatcher";
 
     @Value("${fastapi.url:http://localhost:8000}")
     private String fastapiUrl;
+
+    public MascotaMatcherClient(WebClient.Builder webClientBuilder) {
+        this.webClientBuilder = webClientBuilder;
+    }
 
     // ── DTOs internos que mapean a MascotaInput y MatchRequest de FastAPI ──────
 
@@ -90,14 +97,10 @@ public class MascotaMatcherClient {
 
     /**
      * Llama a POST /api/match en el microservicio FastAPI.
-     * Si FastAPI no responde o hay error, retorna lista vacía sin romper el flujo.
-     *
-     * @param mascotaReportada mascota recién guardada en la DB
-     * @param candidatas       mascotas con estado opuesto de la misma especie
-     * @return resultados ordenados por score desc, o lista vacía ante cualquier fallo
      */
+    @CircuitBreaker(name = CB_FASTAPI, fallbackMethod = "buscarCoincidenciasFallback")
     public List<MatchResultDTO> buscarCoincidencias(Mascotas mascotaReportada,
-                                                     List<Mascotas> candidatas) {
+                                                    List<Mascotas> candidatas) {
         if (candidatas == null || candidatas.isEmpty()) {
             return Collections.emptyList();
         }

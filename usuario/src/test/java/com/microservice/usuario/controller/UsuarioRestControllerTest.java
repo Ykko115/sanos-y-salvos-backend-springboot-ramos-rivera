@@ -1,8 +1,12 @@
 package com.microservice.usuario.controller;
 
-import com.gateway.apigateway.security.JwtUtil;
 import com.microservice.usuario.entitie.Usuario;
+import com.microservice.usuario.entitie.dto.ActualizarUsuarioDTO;
+import com.microservice.usuario.entitie.dto.CrearUsuarioDTO;
+import com.microservice.usuario.exception.ServicioNoDisponibleException;
+import com.microservice.usuario.security.JwtUtil;
 import com.microservice.usuario.service.UsuarioService;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +25,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
 
 @WebMvcTest(UsuarioRestController.class)
 class UsuarioRestControllerTest {
@@ -104,7 +109,7 @@ class UsuarioRestControllerTest {
     @WithMockUser
     void crear_usuarioValido_debeRetornar200() throws Exception {
         when(jwtUtil.generateToken(anyString(), anyList())).thenReturn("token.jwt.test");
-        when(usuarioService.crear(any(Usuario.class))).thenReturn(usuario);
+        when(usuarioService.crear(any(CrearUsuarioDTO.class))).thenReturn(usuario);
 
         mockMvc.perform(post("/api/usuario")
                 .with(csrf())
@@ -118,7 +123,7 @@ class UsuarioRestControllerTest {
     @WithMockUser
     void crear_emailDuplicado_debeRetornar400() throws Exception {
         when(jwtUtil.generateToken(anyString(), anyList())).thenReturn("token");
-        when(usuarioService.crear(any(Usuario.class)))
+        when(usuarioService.crear(any(CrearUsuarioDTO.class)))
             .thenThrow(new IllegalArgumentException("el Email ya ah sido registrado"));
 
         mockMvc.perform(post("/api/usuario")
@@ -202,12 +207,70 @@ class UsuarioRestControllerTest {
     @Test
     @WithMockUser
     void actualizar_existente_debeRetornar200() throws Exception {
-        when(usuarioService.actualizar(eq(1L), any(Usuario.class))).thenReturn(usuario);
+        when(usuarioService.actualizar(eq(1L), any(ActualizarUsuarioDTO.class))).thenReturn(usuario);
 
         mockMvc.perform(put("/api/usuario/1")
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"nombre\":\"Carlos\"}"))
             .andExpect(status().isOk());
+    }
+
+    // ─── obtenerUsuarioConMascotas ────────────────────────────────────────────
+
+    @Test
+    @WithMockUser
+    void obtenerUsuarioConMascotas_existente_debeRetornar200() throws Exception {
+        when(usuarioService.obtenerUsuarioConMascotas(1L)).thenReturn(usuario);
+
+        mockMvc.perform(get("/api/usuario/1/mascotas"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser
+    void obtenerUsuarioConMascotas_servicioNoDisponible_debeRetornar503() throws Exception {
+        when(usuarioService.obtenerUsuarioConMascotas(1L))
+            .thenThrow(new ServicioNoDisponibleException("servicio caido"));
+
+        mockMvc.perform(get("/api/usuario/1/mascotas"))
+            .andExpect(status().isServiceUnavailable());
+    }
+
+    @Test
+    @WithMockUser
+    void obtenerUsuarioConMascotas_inexistente_debeRetornar404() throws Exception {
+        when(usuarioService.obtenerUsuarioConMascotas(999L))
+            .thenThrow(new RuntimeException("no encontrado"));
+
+        mockMvc.perform(get("/api/usuario/999/mascotas"))
+            .andExpect(status().isNotFound());
+    }
+
+    // ─── obtenerPorId con plain=true ─────────────────────────────────────────
+
+    @Test
+    @WithMockUser
+    void obtenerPorId_plain_debeRetornarMapaSimple() throws Exception {
+        when(usuarioService.ObtenerPorId(1L)).thenReturn(usuario);
+
+        mockMvc.perform(get("/api/usuario/1").param("plain", "true"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.email").value("juan@test.com"));
+    }
+
+    // ─── login con excepcion ──────────────────────────────────────────────────
+
+    @Test
+    @WithMockUser
+    void login_errorInterno_debeRetornar500() throws Exception {
+        when(usuarioService.buscarPorEmail(anyString()))
+            .thenThrow(new RuntimeException("error de base de datos"));
+
+        mockMvc.perform(post("/api/usuario/login")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"juan@test.com\",\"password\":\"pass\"}"))
+            .andExpect(status().isInternalServerError());
     }
 }

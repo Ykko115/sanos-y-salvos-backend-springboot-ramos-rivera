@@ -3,8 +3,8 @@ services:
   postgres:
     image: postgres:15
     environment:
-      POSTGRES_USER: user_adm
-      POSTGRES_PASSWORD: Nykolas2111
+      POSTGRES_USER: ${DB_USER:-user_adm}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-Nykolas2111}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./db:/docker-entrypoint-initdb.d:ro
@@ -58,15 +58,13 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
 
   usuario:
-    build:
-      context: .
-      dockerfile: usuario/Dockerfile
+    image: ${DOCKER_HUB_USER:-nyko115}/sanos-y-salvos-backend:usuario-${IMAGE_TAG:-latest}
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: usuario_db
-      DB_USER: user_adm
-      DB_PASSWORD: Nykolas2111
+      DB_USER: ${DB_USER:-user_adm}
+      DB_PASSWORD: ${DB_PASSWORD:-Nykolas2111}
     ports:
       - "8081:8081"
     depends_on:
@@ -74,16 +72,17 @@ services:
         condition: service_healthy
 
   mascotas:
-    build: ./mascotas
+    image: ${DOCKER_HUB_USER:-nyko115}/sanos-y-salvos-backend:mascotas-${IMAGE_TAG:-latest}
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: mascotas_db
-      DB_USER: user_adm
-      DB_PASSWORD: Nykolas2111
+      DB_USER: ${DB_USER:-user_adm}
+      DB_PASSWORD: ${DB_PASSWORD:-Nykolas2111}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       FASTAPI_URL: http://host.docker.internal:8000
       REPORTES_SERVICE_URL: http://reportes:8083
+
     ports:
       - "8082:8082"
     depends_on:
@@ -93,14 +92,15 @@ services:
         condition: service_started
 
   reportes:
-    build: ./reportes
+    image: ${DOCKER_HUB_USER:-nyko115}/sanos-y-salvos-backend:reportes-${IMAGE_TAG:-latest}
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: reportes_db
-      DB_USER: user_adm
-      DB_PASSWORD: Nykolas2111
+      DB_USER: ${DB_USER:-user_adm}
+      DB_PASSWORD: ${DB_PASSWORD:-Nykolas2111}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
     ports:
       - "8083:8083"
     depends_on:
@@ -110,11 +110,7 @@ services:
         condition: service_started
 
   apigateway:
-    build: ./apigateway
-    environment:
-      USUARIO_SERVICE_URL: http://usuario:8081
-      MASCOTAS_SERVICE_URL: http://mascotas:8082
-      REPORTES_SERVICE_URL: http://reportes:8083
+    image: ${DOCKER_HUB_USER:-nyko115}/sanos-y-salvos-backend:apigateway-${IMAGE_TAG:-latest}
     ports:
       - "8080:8080"
     depends_on:
@@ -122,7 +118,37 @@ services:
       - mascotas
       - reportes
 
+  db-sonarqube:
+    image: postgres:16-alpine
+    container_name: db-sonarqube
+    environment:
+      POSTGRES_USER: sonar           
+      POSTGRES_PASSWORD: sonar_1234  
+      POSTGRES_DB: sonar
+    volumes:
+      - sonar-db-data:/var/lib/postgresql/data
+
+  sonarqube:
+    image: sonarqube:community
+    container_name: sonarqube
+    depends_on:
+      - db-sonarqube
+    environment:
+      SONAR_JDBC_USERNAME: sonar          
+      SONAR_JDBC_PASSWORD: sonar_1234     
+      SONAR_JDBC_URL: jdbc:postgresql://db-sonarqube:5432/sonar
+    ports:
+      - "9000:9000"
+    volumes:
+      - sonar-data:/opt/sonarqube/data
+      - sonar-extensions:/opt/sonarqube/extensions
+      - sonar-logs:/opt/sonarqube/logs
+
 volumes:
   postgres-data:
   zookeeper-data:
   zookeeper-log:
+  sonar-db-data:
+  sonar-data:
+  sonar-extensions:
+  sonar-logs:

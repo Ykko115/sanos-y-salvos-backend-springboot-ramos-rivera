@@ -1,24 +1,36 @@
 package mascotas.microservice.mascotas.service;
 
-import mascotas.microservice.mascotas.entity.Mascotas;
-import mascotas.microservice.mascotas.repository.MascotasRepository;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.web.reactive.function.client.*;
-
-import reactor.core.publisher.Mono;
-
 import java.util.List;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+
+import mascotas.microservice.mascotas.client.MascotaMatcherClient;
+import mascotas.microservice.mascotas.dto.MatchResultDTO;
+import mascotas.microservice.mascotas.entity.Mascotas;
+import mascotas.microservice.mascotas.repository.MascotasRepository;
+import reactor.core.publisher.Mono;
 
 @ExtendWith(MockitoExtension.class)
 class MascotasServiceImplTest {
@@ -28,6 +40,12 @@ class MascotasServiceImplTest {
 
     @Mock
     private WebClient.Builder webClientBuilder;
+
+    @Mock
+    private MascotaMatcherClient mascotaMatcherClient;
+
+    @Mock
+    private NotificacionMatchService notificacionMatchService;
 
     @InjectMocks
     private MascotasServiceImpl mascotasService;
@@ -116,17 +134,91 @@ class MascotasServiceImplTest {
     }
 
     @Test
-    void crearMascota_usuarioNoExiste_debeLanzarExcepcion() {
+    void crearMascota_usuarioNoExiste_debeGuardarIgualmente() {
+
         WebClient mockError = buildWebClientMockError();
         when(webClientBuilder.build()).thenReturn(mockError);
 
-        assertThatThrownBy(() -> mascotasService.crearMascota(mascota))
-            .isInstanceOf(RuntimeException.class)
-            .hasMessageContaining("Usuario no encontrado");
+        when(mascotasRepository.save(any(Mascotas.class)))
+                .thenReturn(mascota);
 
-        verify(mascotasRepository, never()).save(any());
+        Mascotas resultado = mascotasService.crearMascota(mascota);
+
+        assertThat(resultado).isNotNull();
+        assertThat(resultado.getNombre()).isEqualTo(mascota.getNombre());
+
+        verify(mascotasRepository, times(1))
+                .save(any(Mascotas.class));
     }
 
+    @Test
+    void crearMascota_conCoincidencia_debeNotificar() {
+
+        mascota.setEstado(Mascotas.Estado.PERDIDO);
+
+        Mascotas candidata = new Mascotas();
+        candidata.setId(2L);
+        candidata.setEstado(Mascotas.Estado.ENCONTRADO);
+        candidata.setEspecie(Mascotas.Especie.PERRO);
+
+        MatchResultDTO match = new MatchResultDTO();
+        match.setMascotaId(2L);
+        match.setScore(0.95);
+        match.setPorcentaje(95);
+        match.setAlerta(true);
+        match.setMensaje("Coincidencia encontrada");
+
+        when(mascotasRepository.save(any(Mascotas.class)))
+                .thenReturn(mascota);
+
+        when(mascotasRepository.findByEspecieAndEstado(
+                Mascotas.Especie.PERRO,
+                Mascotas.Estado.ENCONTRADO))
+                .thenReturn(List.of(candidata));
+
+        when(mascotaMatcherClient.buscarCoincidencias(any(Mascotas.class), anyList()))
+                .thenReturn(List.of(match));
+
+        mascotasService.crearMascota(mascota);
+
+        verify(notificacionMatchService)
+                .notificarCoincidencia(mascota, match);
+    }
+
+    @Test
+    void crearMascota_sinAlerta_noDebeNotificar() {
+
+        mascota.setEstado(Mascotas.Estado.PERDIDO);
+
+        Mascotas candidata = new Mascotas();
+        candidata.setId(2L);
+        candidata.setEstado(Mascotas.Estado.ENCONTRADO);
+        candidata.setEspecie(Mascotas.Especie.PERRO);
+
+        MatchResultDTO match = new MatchResultDTO();
+        match.setMascotaId(2L);
+        match.setScore(0.70);
+        match.setPorcentaje(70);
+        match.setAlerta(false);
+
+        when(mascotasRepository.save(any(Mascotas.class)))
+                .thenReturn(mascota);
+
+        when(mascotasRepository.findByEspecieAndEstado(
+                Mascotas.Especie.PERRO,
+                Mascotas.Estado.ENCONTRADO))
+                .thenReturn(List.of(candidata));
+
+        when(mascotaMatcherClient.buscarCoincidencias(
+                any(Mascotas.class),
+                anyList()))
+                .thenReturn(List.of(match));
+
+        mascotasService.crearMascota(mascota);
+
+        verify(notificacionMatchService, never())
+                .notificarCoincidencia(any(), any());
+    }
     // ─── obtenerMascotaPorId ──────────────────────────────────────────────────
 
     @Test
@@ -185,6 +277,34 @@ class MascotasServiceImplTest {
             .hasMessageContaining("999");
     }
 
+    @Test
+    void actualizarEstado_existente_debeActualizarEstado() {
+
+        mascota.setEstado(Mascotas.Estado.PERDIDO);
+        when(mascotasRepository.findById(1L))
+                .thenReturn(Optional.of(mascota));
+        when(mascotasRepository.save(any(Mascotas.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+        Mascotas resultado =
+                mascotasService.actualizarEstado(1L, Mascotas.Estado.ENCONTRADO);
+        assertThat(resultado.getEstado())
+                .isEqualTo(Mascotas.Estado.ENCONTRADO);
+        verify(mascotasRepository).save(any(Mascotas.class));
+    }
+
+    @Test
+    void actualizarEstado_inexistente_debeLanzarExcepcion() {
+
+        when(mascotasRepository.findById(999L))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() ->
+                mascotasService.actualizarEstado(
+                        999L,
+                        Mascotas.Estado.ENCONTRADO))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("999");
+    }
     // ─── eliminarMascota ──────────────────────────────────────────────────────
 
     @Test
@@ -232,5 +352,19 @@ class MascotasServiceImplTest {
         when(mascotasRepository.findByUsuarioId(1L)).thenReturn(List.of(mascota));
 
         assertThat(mascotasService.obtenerMascotasPorUsuarioId(1L)).hasSize(1);
+    }
+
+    @Test
+    void obtenerMascotasPorEstado_debeRetornarFiltradas() {
+
+        mascota.setEstado(Mascotas.Estado.PERDIDO);
+        when(mascotasRepository.findByEstado(Mascotas.Estado.PERDIDO))
+                .thenReturn(List.of(mascota));
+        List<Mascotas> resultado =
+                mascotasService.obtenerMascotasPorEstado(
+                        Mascotas.Estado.PERDIDO);
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).getEstado())
+                .isEqualTo(Mascotas.Estado.PERDIDO);
     }
 }

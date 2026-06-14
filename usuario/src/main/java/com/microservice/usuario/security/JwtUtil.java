@@ -1,4 +1,4 @@
-package com.gateway.apigateway.security;
+package com.microservice.usuario.security;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
