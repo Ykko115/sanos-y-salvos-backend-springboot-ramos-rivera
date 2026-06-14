@@ -51,6 +51,8 @@ services:
 
   apigateway:
     image: ${DOCKER_HUB_USER:-nyko115}/sanos-y-salvos-backend:apigateway-${IMAGE_TAG:-latest}
+    environment:
+      SECURITY_JWT_SECRET: jwt_secret_sanos_salvos_2026_clave_muy_segura_12345
     ports:
       - "8080:8080"
     depends_on:
