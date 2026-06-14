@@ -1,24 +1,26 @@
 package mascotas.microservice.mascotas.client;
 
-import java.time.Duration;
-import java.util.Collections;
-import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.MediaType;
-import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
-
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import mascotas.microservice.mascotas.dto.MatchResultDTO;
 import mascotas.microservice.mascotas.entity.Mascotas;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
+import java.util.stream.Collectors;
+import java.util.ArrayList;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import mascotas.microservice.mascotas.exception.ServicioNoDisponibleException;
 
 @Service
@@ -26,10 +28,10 @@ public class MascotaMatcherClient {
 
     private static final Logger logger = LoggerFactory.getLogger(MascotaMatcherClient.class);
 
+    @Autowired
+    private WebClient.Builder webClientBuilder;
     /** Nombre de la instancia de Circuit Breaker (ver application.properties). */
     private static final String CB_FASTAPI = "fastapiMatcher";
-
-    private final WebClient.Builder webClientBuilder;
 
     @Value("${fastapi.url:http://localhost:8000}")
     private String fastapiUrl;
@@ -46,12 +48,17 @@ public class MascotaMatcherClient {
     public static class MascotaInputDTO {
         private Long id;
         private String nombre;
-        private String raza;
-        private Integer edad;
-        private String descripcion;
-        private Long usuarioId;
         private String especie;
         private String estado;
+        private String raza;
+        private String color;
+        private String tamano;
+        private String pelaje;
+        private Integer edad;
+        private String rangoEdad;
+        private List<String> senas;
+        private String descripcion;
+        private Long usuarioId;
     }
 
     @Data
@@ -66,15 +73,23 @@ public class MascotaMatcherClient {
     // ── Conversión Mascotas → DTO ────────────────────────────────────────────
 
     private MascotaInputDTO toDTO(Mascotas m) {
+        List<String> senas = m.getSenas() != null
+            ? m.getSenas().stream().map(Enum::name).collect(Collectors.toList())
+            : Collections.emptyList();
         return new MascotaInputDTO(
             m.getId(),
             m.getNombre(),
+            m.getEspecie()    != null ? m.getEspecie().name()    : null,
+            m.getEstado()     != null ? m.getEstado().name()     : null,
             m.getRaza(),
+            m.getColor()      != null ? m.getColor().name()      : null,
+            m.getTamano()     != null ? m.getTamano().name()     : null,
+            m.getPelaje()     != null ? m.getPelaje().name()     : null,
             m.getEdad(),
+            m.getRangoEdad()  != null ? m.getRangoEdad().name()  : null,
+            senas,
             m.getDescripcion(),
-            m.getUsuarioId(),
-            m.getEspecie()  != null ? m.getEspecie().name()  : null,
-            m.getEstado()   != null ? m.getEstado().name()   : null
+            m.getUsuarioId()
         );
     }
 
@@ -90,31 +105,31 @@ public class MascotaMatcherClient {
             return Collections.emptyList();
         }
 
-        MatchRequestBody body = new MatchRequestBody(
-            toDTO(mascotaReportada),
-            candidatas.stream().map(this::toDTO).toList()
-        );
+        try {
+            MatchRequestBody body = new MatchRequestBody(
+                toDTO(mascotaReportada),
+                candidatas.stream().map(this::toDTO).collect(Collectors.toList())
+            );
 
-        List<MatchResultDTO> resultado = webClientBuilder.build()
-            .post()
-            .uri(fastapiUrl + "/api/match")
-            .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(body)
-            .retrieve()
-            .bodyToMono(new ParameterizedTypeReference<List<MatchResultDTO>>() {})
-            .timeout(Duration.ofSeconds(30))
-            .block();
+            List<MatchResultDTO> resultado = webClientBuilder.build()
+                .post()
+                .uri(fastapiUrl + "/api/match")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(body)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<List<MatchResultDTO>>() {})
+                .timeout(Duration.ofSeconds(30))
+                .onErrorResume(ex -> {
+                    logger.error("FastAPI no respondió: {}", ex.getMessage());
+                    return Mono.just(Collections.emptyList());
+                })
+                .block();
 
-        return resultado != null ? resultado : Collections.emptyList();
-    }
+            return resultado != null ? resultado : Collections.emptyList();
 
-    @SuppressWarnings("java:S1172")
-    public List<MatchResultDTO> buscarCoincidenciasFallback(Mascotas mascotaReportada,
-                                                            List<Mascotas> candidatas,
-                                                            Throwable t) {
-        logger.error("Circuit breaker '{}' activo o fallo de conexión con el motor de "
-            + "coincidencias FastAPI: {}", CB_FASTAPI, t.getMessage());
-        throw new ServicioNoDisponibleException(
-            "El motor de coincidencias (FastAPI) no está disponible en este momento.", t);
+        } catch (Exception e) {
+            logger.error("Error al llamar al motor de coincidencias: {}", e.getMessage());
+            return Collections.emptyList();
+        }
     }
 }
