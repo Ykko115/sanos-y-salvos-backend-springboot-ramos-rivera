@@ -12,7 +12,7 @@ public interface MascotasRepository extends JpaRepository<Mascotas, Long> {
 
     Optional<Mascotas> findByNombre(String nombre);
 
-    List<Mascotas> findByEspecie(String especie);
+    List<Mascotas> findByEspecie(Mascotas.Especie especie);
 
     List<Mascotas> findByRaza(String raza);
 
