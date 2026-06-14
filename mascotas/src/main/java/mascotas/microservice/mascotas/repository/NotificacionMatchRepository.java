@@ -14,4 +14,7 @@ public interface NotificacionMatchRepository extends JpaRepository<NotificacionM
     List<NotificacionMatch> findByMascotaIdPerdida(Long mascotaId);
 
     List<NotificacionMatch> findByLeidaFalse();
+
+    // Evita guardar dos veces la misma coincidencia (mismo par perdida/candidata)
+    boolean existsByMascotaIdPerdidaAndMascotaIdCandidata(Long mascotaIdPerdida, Long mascotaIdCandidata);
 }

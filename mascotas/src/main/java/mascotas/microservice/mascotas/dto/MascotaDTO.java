@@ -15,6 +15,7 @@ public class MascotaDTO {
     private Mascotas.RangoEdad rangoEdad;
     private List<Mascotas.Sena> senas;
     private String descripcion;
+    private String contacto;
     private String fotoUrl;
     private Double lat;
     private Double lng;
@@ -51,6 +52,9 @@ public class MascotaDTO {
     public String getDescripcion() { return descripcion; }
     public void setDescripcion(String descripcion) { this.descripcion = descripcion; }
 
+    public String getContacto() { return contacto; }
+    public void setContacto(String contacto) { this.contacto = contacto; }
+
     public String getFotoUrl() { return fotoUrl; }
     public void setFotoUrl(String fotoUrl) { this.fotoUrl = fotoUrl; }
 
@@ -79,6 +83,7 @@ public class MascotaDTO {
         m.setRangoEdad(rangoEdad);
         if (senas != null) m.setSenas(senas);
         m.setDescripcion(descripcion);
+        m.setContacto(contacto);
         m.setFotoUrl(fotoUrl);
         m.setLat(lat);
         m.setLng(lng);

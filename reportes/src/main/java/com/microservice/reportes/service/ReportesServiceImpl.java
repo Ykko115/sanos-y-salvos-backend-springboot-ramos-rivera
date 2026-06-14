@@ -147,4 +147,11 @@ public class ReportesServiceImpl  implements ReportesService{
         return reportesRepository.findByMascotaId(mascotaId);
     }
 
+    @Override
+    public void eliminarReportesPorMascotaId(Long mascotaId) {
+        List<Reportes> reportes = reportesRepository.findByMascotaId(mascotaId);
+        reportes.forEach(r -> reportesRepository.deleteById(r.getId()));
+        logger.info("Eliminados {} reporte(s) para mascotaId={}", reportes.size(), mascotaId);
+    }
+
 }

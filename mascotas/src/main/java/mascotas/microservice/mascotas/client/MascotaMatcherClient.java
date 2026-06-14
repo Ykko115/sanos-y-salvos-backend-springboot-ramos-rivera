@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 @Service
 public class MascotaMatcherClient {
@@ -40,12 +41,17 @@ public class MascotaMatcherClient {
     public static class MascotaInputDTO {
         private Long id;
         private String nombre;
-        private String raza;
-        private Integer edad;
-        private String descripcion;
-        private Long usuarioId;
         private String especie;
         private String estado;
+        private String raza;
+        private String color;
+        private String tamano;
+        private String pelaje;
+        private Integer edad;
+        private String rangoEdad;
+        private List<String> senas;
+        private String descripcion;
+        private Long usuarioId;
     }
 
     @Data
@@ -60,15 +66,23 @@ public class MascotaMatcherClient {
     // ── Conversión Mascotas → DTO ────────────────────────────────────────────
 
     private MascotaInputDTO toDTO(Mascotas m) {
+        List<String> senas = m.getSenas() != null
+            ? m.getSenas().stream().map(Enum::name).collect(Collectors.toList())
+            : Collections.emptyList();
         return new MascotaInputDTO(
             m.getId(),
             m.getNombre(),
+            m.getEspecie()    != null ? m.getEspecie().name()    : null,
+            m.getEstado()     != null ? m.getEstado().name()     : null,
             m.getRaza(),
+            m.getColor()      != null ? m.getColor().name()      : null,
+            m.getTamano()     != null ? m.getTamano().name()     : null,
+            m.getPelaje()     != null ? m.getPelaje().name()     : null,
             m.getEdad(),
+            m.getRangoEdad()  != null ? m.getRangoEdad().name()  : null,
+            senas,
             m.getDescripcion(),
-            m.getUsuarioId(),
-            m.getEspecie()  != null ? m.getEspecie().name()  : null,
-            m.getEstado()   != null ? m.getEstado().name()   : null
+            m.getUsuarioId()
         );
     }
 

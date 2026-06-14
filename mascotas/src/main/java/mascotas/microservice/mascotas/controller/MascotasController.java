@@ -2,7 +2,9 @@ package mascotas.microservice.mascotas.controller;
 
 import mascotas.microservice.mascotas.dto.MascotaDTO;
 import mascotas.microservice.mascotas.entity.Mascotas;
+import mascotas.microservice.mascotas.entity.NotificacionMatch;
 import mascotas.microservice.mascotas.service.MascotasService;
+import mascotas.microservice.mascotas.service.NotificacionMatchService;
 import mascotas.microservice.mascotas.dto.UsuarioDTO;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -19,11 +21,14 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/mascotas")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = { "http://localhost:5173", "http://localhost:5174" })
 public class MascotasController {
 
     @Autowired
     private MascotasService mascotasService;
+
+    @Autowired
+    private NotificacionMatchService notificacionMatchService;
 
     @Autowired
     private WebClient.Builder webClientBuilder;
@@ -160,6 +165,18 @@ public class MascotasController {
         } catch (RuntimeException e) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+    }
+
+    // ── Notificaciones de coincidencias por usuario ────────────────
+    @GetMapping("/notificaciones/{usuarioId}")
+    public ResponseEntity<List<NotificacionMatch>> obtenerNotificaciones(@PathVariable Long usuarioId) {
+        return ResponseEntity.ok(notificacionMatchService.obtenerPorUsuario(usuarioId));
+    }
+
+    @PutMapping("/notificaciones/{id}/leida")
+    public ResponseEntity<Void> marcarNotificacionLeida(@PathVariable Long id) {
+        notificacionMatchService.marcarLeida(id);
+        return ResponseEntity.ok().build();
     }
 
     // ── Endpoints heredados ────────────────────────────────────────
