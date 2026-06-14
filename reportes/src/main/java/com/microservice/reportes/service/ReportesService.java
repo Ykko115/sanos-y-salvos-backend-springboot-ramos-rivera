@@ -16,4 +16,6 @@ public interface ReportesService {
     List<Reportes> obtenerReportesPorUsuario(Long usuarioId);
     List<Reportes> obtenerReportesPorMascota(Long mascotaId);
 
+    void eliminarReportesPorMascotaId(Long mascotaId);
+
 }

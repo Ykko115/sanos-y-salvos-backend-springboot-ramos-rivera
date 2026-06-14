@@ -135,6 +135,17 @@ public class ReportesRestController {
         }
     }
 
+    @DeleteMapping("/mascota/{mascotaId}")
+    public ResponseEntity<?> eliminarReportesPorMascota(@PathVariable Long mascotaId) {
+        try {
+            reporteService.eliminarReportesPorMascotaId(mascotaId);
+            return ResponseEntity.ok(Map.of("mensaje", "Reportes eliminados para mascotaId=" + mascotaId));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", e.getMessage()));
+        }
+    }
+
 
     @PostMapping("/upload-image")
     public ResponseEntity<?> uploadImage(@RequestParam("file") MultipartFile file) {
@@ -149,7 +160,12 @@ public class ReportesRestController {
                     .credentialsProvider(StaticCredentialsProvider.create(creds))
                     .build();
 
-            String key = "imagenes/" + file.getOriginalFilename();
+            String ext = "";
+            String original = file.getOriginalFilename();
+            if (original != null && original.contains(".")) {
+                ext = original.substring(original.lastIndexOf('.'));
+            }
+            String key = "imagenes/" + java.util.UUID.randomUUID() + ext;
 
                 s3.putObject(
                     PutObjectRequest.builder()
