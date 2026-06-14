@@ -50,6 +50,8 @@ public class Mascotas {
 
     private String descripcion;
 
+    private String contacto;
+
     @Column(columnDefinition = "TEXT")
     private String fotoUrl;
 

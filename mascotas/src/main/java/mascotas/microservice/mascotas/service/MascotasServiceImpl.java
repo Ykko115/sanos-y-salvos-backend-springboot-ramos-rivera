@@ -3,9 +3,11 @@ package mascotas.microservice.mascotas.service;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,10 +25,22 @@ public class MascotasServiceImpl implements MascotasService {
 
     private static final Logger logger = LoggerFactory.getLogger(MascotasServiceImpl.class);
 
+    @Autowired
+    private MascotasRepository mascotasRepository;
+
     private final MascotasRepository mascotasRepository;
     private final WebClient.Builder webClientBuilder;
     private final MascotaMatcherClient mascotaMatcherClient;
     private final NotificacionMatchService notificacionMatchService;
+
+    @Autowired
+    private MascotaMatcherClient mascotaMatcherClient;
+
+    @Autowired
+    private NotificacionMatchService notificacionMatchService;
+
+    @Autowired
+    private KafkaProducerService kafkaProducerService;
 
     @Value("${usuario.service.url:http://usuario:8081}")
     private String usuarioServiceUrl;
@@ -34,6 +48,8 @@ public class MascotasServiceImpl implements MascotasService {
     @Value("${matcher.score.alerta:0.90}")
     private double matcherScoreAlerta;
 
+    @Value("${reportes.service.url:http://reportes:8083}")
+    private String reportesServiceUrl;
     public MascotasServiceImpl(MascotasRepository mascotasRepository,
                                WebClient.Builder webClientBuilder,
                                MascotaMatcherClient mascotaMatcherClient,
@@ -58,12 +74,21 @@ public class MascotasServiceImpl implements MascotasService {
         }
         Mascotas guardada = mascotasRepository.save(mascota);
 
-        // Buscar coincidencias en segundo plano — si falla no interrumpe el flujo
-        try {
-            buscarYNotificarCoincidencias(guardada);
-        } catch (Exception e) {
-            logger.warn("Error al buscar coincidencias (no afecta el registro): {}", e.getMessage());
+        if (guardada.getEstado() == Mascotas.Estado.PERDIDO) {
+            kafkaProducerService.publicarMascotaPerdida(guardada);
+        } else if (guardada.getEstado() == Mascotas.Estado.ENCONTRADO) {
+            kafkaProducerService.publicarMascotaEncontrada(guardada);
         }
+
+        // buscar coincidencias en segundo plano
+        final Mascotas mascotaFinal = guardada;
+        CompletableFuture.runAsync(() -> {
+            try {
+                buscarYNotificarCoincidencias(mascotaFinal);
+            } catch (Exception e) {
+                logger.warn("Error al buscar coincidencias (no afecta el registro): {}", e.getMessage());
+            }
+        });
 
         return guardada;
     }
@@ -91,8 +116,19 @@ public class MascotasServiceImpl implements MascotasService {
             mascotaMatcherClient.buscarCoincidencias(mascotaNueva, candidatas);
 
         resultados.stream()
-            .filter(r -> r.getAlerta() != null && r.getAlerta())
-            .forEach(r -> notificacionMatchService.notificarCoincidencia(mascotaNueva, r));
+            .filter(r -> (r.getAlerta() != null && r.getAlerta())
+                      || (r.getScore() != null && r.getScore() >= matcherScoreAlerta))
+            .forEach(r -> {
+                Mascotas candidata = candidatas.stream()
+                    .filter(c -> c.getId().equals(r.getMascotaId()))
+                    .findFirst()
+                    .orElse(null);
+                if (candidata != null) {
+                    notificacionMatchService.notificarCoincidencia(mascotaNueva, r, candidata);
+                } else {
+                    logger.warn("[MATCH] Candidata id={} no encontrada en lista local", r.getMascotaId());
+                }
+            });
     }
 
     @Override
@@ -119,8 +155,41 @@ public class MascotasServiceImpl implements MascotasService {
             .orElseThrow(() -> new RuntimeException("Mascota no encontrada con id: " + id));
         mascota.setEstado(estado);
         Mascotas guardada = mascotasRepository.save(mascota);
-        try { buscarYNotificarCoincidencias(guardada); } catch (Exception e) {
-            logger.warn("Error al buscar coincidencias tras cambio de estado: {}", e.getMessage());
+        if (estado == Mascotas.Estado.PERDIDO) {
+            kafkaProducerService.publicarMascotaPerdida(guardada);
+        } else if (estado == Mascotas.Estado.ENCONTRADO) {
+            kafkaProducerService.publicarMascotaEncontrada(guardada);
+        } else if (estado == Mascotas.Estado.REUNIDO) {
+            if (guardada.getUsuarioId() != null) {
+                notificacionMatchService.notificarReunion(guardada);
+            }
+            // eliminar el reporte asociado en el servicio de reportes
+            try {
+                webClientBuilder.build()
+                    .delete()
+                    .uri(reportesServiceUrl + "/api/reportes/mascota/" + id)
+                    .retrieve()
+                    .bodyToMono(Void.class)
+                    .subscribe(
+                        v -> logger.info("Reporte eliminado para mascota id={}", id),
+                        e -> logger.warn("No se pudo eliminar reporte para mascota id={}: {}", id, e.getMessage())
+                    );
+            } catch (Exception e) {
+                logger.warn("Error al llamar a reportes para eliminar reporte de mascota {}: {}", id, e.getMessage());
+            }
+        }
+
+        // Una mascota REUNIDA ya no participa en el matching — buscar
+        // coincidencias para ella generaría avisos espurios.
+        if (estado != Mascotas.Estado.REUNIDO) {
+            final Mascotas mascotaActualizada = guardada;
+            CompletableFuture.runAsync(() -> {
+                try {
+                    buscarYNotificarCoincidencias(mascotaActualizada);
+                } catch (Exception e) {
+                    logger.warn("Error al buscar coincidencias tras cambio de estado: {}", e.getMessage());
+                }
+            });
         }
         return guardada;
     }

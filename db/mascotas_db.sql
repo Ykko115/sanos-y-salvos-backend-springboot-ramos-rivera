@@ -37,7 +37,7 @@ CREATE TABLE public.mascotas (
     raza character varying(255),
     usuario_id bigint,
     CONSTRAINT mascotas_especie_check CHECK (((especie)::text = ANY ((ARRAY['PERRO'::character varying, 'GATO'::character varying, 'HURON'::character varying, 'ROEDOR'::character varying, 'OTRO'::character varying])::text[]))),
-    CONSTRAINT mascotas_estado_check CHECK (((estado)::text = ANY ((ARRAY['ENCONTRADO'::character varying, 'PERDIDO'::character varying])::text[])))
+    CONSTRAINT mascotas_estado_check CHECK (((estado)::text = ANY ((ARRAY['ENCONTRADO'::character varying, 'PERDIDO'::character varying, 'REUNIDO'::character varying])::text[])))
 );
 
 
