@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import java.nio.charset.StandardCharsets;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.http.ResponseEntity;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -42,7 +43,8 @@ class ServicioValidacionClientTest {
 
     private void mockWebClientOk() {
         WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
-        when(responseSpec.bodyToMono(Object.class)).thenReturn(Mono.just(new Object()));
+        when(responseSpec.toBodilessEntity())
+            .thenReturn(Mono.just(ResponseEntity.ok().<Void>build()));
 
         @SuppressWarnings("rawtypes")
         WebClient.RequestHeadersSpec headersSpec = mock(WebClient.RequestHeadersSpec.class);
@@ -59,7 +61,7 @@ class ServicioValidacionClientTest {
 
     private void mockWebClientNotFound() {
         WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
-        when(responseSpec.bodyToMono(Object.class)).thenReturn(
+        when(responseSpec.toBodilessEntity()).thenReturn(
             Mono.error(WebClientResponseException.create(
                 404, "Not Found", HttpHeaders.EMPTY, new byte[0], StandardCharsets.UTF_8)));
 

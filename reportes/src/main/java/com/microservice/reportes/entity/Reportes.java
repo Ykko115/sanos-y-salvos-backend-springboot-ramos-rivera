@@ -2,6 +2,7 @@ package com.microservice.reportes.entity;
 
 import java.time.LocalDate;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
@@ -34,6 +35,7 @@ public class Reportes {
     @Embedded
     private Ubicacion ubicacion;
 
+    @Column(columnDefinition = "TEXT")
     private String img;
 
     public enum Estado {

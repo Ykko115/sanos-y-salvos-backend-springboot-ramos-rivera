@@ -40,7 +40,7 @@ public class ServicioValidacionClient {
                 .get()
                 .uri(mascotasServiceUrl + "/api/mascotas/" + mascotaId)
                 .retrieve()
-                .bodyToMono(Object.class)
+                .toBodilessEntity()
                 .block();
             logger.info("Mascota encontrada correctamente");
         } catch (WebClientResponseException.NotFound e) {
@@ -52,8 +52,8 @@ public class ServicioValidacionClient {
     @SuppressWarnings("java:S1172")
     public void validarMascotaFallback(Long mascotaId, Throwable t) {
         // Errores de negocio / estado HTTP: la conexión funcionó, se re-lanzan.
-        if (t instanceof MascotaNoEncontradaException) {
-            throw (MascotaNoEncontradaException) t;
+        if (t instanceof MascotaNoEncontradaException mex) {
+            throw mex;
         }
         if (t instanceof WebClientResponseException) {
             throw new ServicioNoDisponibleException("Error al consultar el servicio de mascotas: " + t.getMessage(), t);
@@ -73,7 +73,7 @@ public class ServicioValidacionClient {
                 .get()
                 .uri(usuariosServiceUrl + "/api/usuario/" + usuarioId)
                 .retrieve()
-                .bodyToMono(Object.class)
+                .toBodilessEntity()
                 .block();
             logger.info("Usuario encontrado correctamente");
         } catch (WebClientResponseException.NotFound e) {
@@ -84,8 +84,8 @@ public class ServicioValidacionClient {
 
     @SuppressWarnings("java:S1172")
     public void validarUsuarioFallback(Long usuarioId, Throwable t) {
-        if (t instanceof UsuarioNoEncontradoException) {
-            throw (UsuarioNoEncontradoException) t;
+        if (t instanceof UsuarioNoEncontradoException uex) {
+            throw uex;
         }
         if (t instanceof WebClientResponseException) {
             throw new ServicioNoDisponibleException("Error al consultar el servicio de usuarios: " + t.getMessage(), t);
