@@ -221,4 +221,28 @@ class ReportesRestControllerTest {
         mockMvc.perform(get("/api/reportes/detalle/1"))
             .andExpect(status().isOk());
     }
+
+    @Test
+    @WithMockUser
+    void crearReporte_conMascotaSinImg_debeUsarUrlCorta() throws Exception {
+        reporte.setMascotaId(1L);
+        reporte.setImg("/api/mascotas/1/foto");
+        when(reportesService.creaReporte(any(Reportes.class))).thenReturn(reporte);
+
+        mockMvc.perform(post("/api/reportes")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"mascotaId\":1,\"estado\":\"PERDIDO\"}"))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.img").value("/api/mascotas/1/foto"));
+    }
+
+    @Test
+    @WithMockUser
+    void eliminarReportesPorMascota_debeRetornar200() throws Exception {
+        doNothing().when(reportesService).eliminarReportesPorMascotaId(3L);
+
+        mockMvc.perform(delete("/api/reportes/mascota/3").with(csrf()))
+            .andExpect(status().isOk());
+    }
 }

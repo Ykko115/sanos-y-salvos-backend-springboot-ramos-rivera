@@ -38,4 +38,9 @@ public class FallbackController {
     public ResponseEntity<Map<String, Object>> reportesFallback() {
         return serviceUnavailable("reportes");
     }
+
+    @RequestMapping("/matcher")
+    public ResponseEntity<Map<String, Object>> matcherFallback() {
+        return serviceUnavailable("matcher");
+    }
 }

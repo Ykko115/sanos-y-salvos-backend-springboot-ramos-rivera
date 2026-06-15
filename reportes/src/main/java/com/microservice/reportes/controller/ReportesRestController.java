@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -39,6 +41,7 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 @RequestMapping("/api/reportes")
 public class ReportesRestController {
 
+    private static final Logger logger = LoggerFactory.getLogger(ReportesRestController.class);
     private static final String ERROR_KEY = "error";
 
     private final ReportesService reporteService;
@@ -76,16 +79,28 @@ public class ReportesRestController {
             reportes.setDescripcion(dto.getDescripcion());
             reportes.setTelefono(dto.getTelefono());
             reportes.setUbicacion(dto.getUbicacion());
-            reportes.setImg(dto.getImg());
             reportes.setEstado(dto.getEstado());
             reportes.setFechaReporte(dto.getFechaReporte());
+
+            // Vincular fotoUrl de la mascota al img del reporte si no viene en el DTO
+            String img = dto.getImg();
+            if ((img == null || img.isBlank()) && dto.getMascotaId() != null) {
+                img = obtenerFotoUrlMascota(dto.getMascotaId());
+            }
+            reportes.setImg(img);
+
             Reportes reporteCreado = reporteService.creaReporte(reportes);
             return new ResponseEntity<>(reporteCreado, HttpStatus.CREATED);
         } catch (MascotaNoEncontradaException | UsuarioNoEncontradoException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception e) {
+            logger.error("Error al crear reporte: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    private String obtenerFotoUrlMascota(Long mascotaId) {
+        return "/api/mascotas/" + mascotaId + "/foto";
     }
 
     @GetMapping("/{id}")
@@ -158,13 +173,13 @@ public class ReportesRestController {
     }
 
     @DeleteMapping("/mascota/{mascotaId}")
-    public ResponseEntity<?> eliminarReportesPorMascota(@PathVariable Long mascotaId) {
+    public ResponseEntity<Map<String, Object>> eliminarReportesPorMascota(@PathVariable Long mascotaId) {
         try {
             reporteService.eliminarReportesPorMascotaId(mascotaId);
             return ResponseEntity.ok(Map.of("mensaje", "Reportes eliminados para mascotaId=" + mascotaId));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", e.getMessage()));
+                .body(Map.of(ERROR_KEY, e.getMessage()));
         }
     }
 

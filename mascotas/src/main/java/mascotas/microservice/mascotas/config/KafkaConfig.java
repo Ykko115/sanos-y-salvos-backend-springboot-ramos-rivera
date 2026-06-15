@@ -20,6 +20,7 @@ public class KafkaConfig {
     private String bootstrapServers;
 
     @Bean
+    @SuppressWarnings("java:S5738")
     public ProducerFactory<String, Object> producerFactory() {
         Map<String, Object> props = new HashMap<>();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);

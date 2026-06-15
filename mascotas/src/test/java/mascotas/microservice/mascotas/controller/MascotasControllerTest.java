@@ -290,4 +290,59 @@ class MascotasControllerTest {
         mockMvc.perform(get("/api/mascotas").param("estado", "INVALIDO"))
             .andExpect(status().isBadRequest());
     }
+
+    @Test
+    @WithMockUser
+    void obtenerFoto_mascotaConFoto_debeRetornar200() throws Exception {
+        // PNG 1x1 en base64 para simular una foto real
+        String base64Png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+        mascota.setFotoUrl("data:image/png;base64," + base64Png);
+        when(mascotasService.obtenerMascotaPorId(1L)).thenReturn(Optional.of(mascota));
+
+        mockMvc.perform(get("/api/mascotas/1/foto"))
+            .andExpect(status().isOk())
+            .andExpect(result -> {
+                String contentType = result.getResponse().getContentType();
+                assert contentType != null && contentType.contains("image/png");
+            });
+    }
+
+    @Test
+    @WithMockUser
+    void obtenerFoto_mascotaInexistente_debeRetornar404() throws Exception {
+        when(mascotasService.obtenerMascotaPorId(999L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/mascotas/999/foto"))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser
+    void obtenerFoto_mascotaSinFoto_debeRetornar404() throws Exception {
+        mascota.setFotoUrl(null);
+        when(mascotasService.obtenerMascotaPorId(1L)).thenReturn(Optional.of(mascota));
+
+        mockMvc.perform(get("/api/mascotas/1/foto"))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser
+    void obtenerFoto_mascotaConFotoNoBase64_debeRetornar404() throws Exception {
+        mascota.setFotoUrl("https://cdn.example.com/foto.jpg");
+        when(mascotasService.obtenerMascotaPorId(1L)).thenReturn(Optional.of(mascota));
+
+        mockMvc.perform(get("/api/mascotas/1/foto"))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser
+    void obtenerFoto_base64Invalido_debeRetornar400() throws Exception {
+        mascota.setFotoUrl("data:image/png;base64,!!!base64invalido!!!");
+        when(mascotasService.obtenerMascotaPorId(1L)).thenReturn(Optional.of(mascota));
+
+        mockMvc.perform(get("/api/mascotas/1/foto"))
+            .andExpect(status().isBadRequest());
+    }
 }

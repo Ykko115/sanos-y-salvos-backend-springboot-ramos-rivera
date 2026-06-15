@@ -15,21 +15,17 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpHeaders;
 
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.springframework.beans.factory.annotation.Autowired;
-
 @RestController
 @RequestMapping("/api/mascotas")
 @CrossOrigin(origins = { "http://localhost:5173", "http://localhost:5174" })
 public class MascotasController {
 
     private final MascotasService mascotasService;
-
-    @Autowired
-    private NotificacionMatchService notificacionMatchService;
-
+    private final NotificacionMatchService notificacionMatchService;
     private final WebClient.Builder webClientBuilder;
 
     @Value("${usuario.service.urls:http://usuario:8081}")
@@ -38,8 +34,11 @@ public class MascotasController {
     @Value("${internal.jwt:}")
     private String internalJwt;
 
-    public MascotasController(MascotasService mascotasService, WebClient.Builder webClientBuilder) {
+    public MascotasController(MascotasService mascotasService,
+                               NotificacionMatchService notificacionMatchService,
+                               WebClient.Builder webClientBuilder) {
         this.mascotasService = mascotasService;
+        this.notificacionMatchService = notificacionMatchService;
         this.webClientBuilder = webClientBuilder;
     }
 
@@ -181,6 +180,33 @@ public class MascotasController {
     public ResponseEntity<Void> marcarNotificacionLeida(@PathVariable Long id) {
         notificacionMatchService.marcarLeida(id);
         return ResponseEntity.ok().build();
+    }
+
+    // ── GET /api/mascotas/{id}/foto ────────────────────────────────
+    @GetMapping("/{id}/foto")
+    public ResponseEntity<byte[]> obtenerFoto(@PathVariable Long id) {
+        Optional<Mascotas> opt = mascotasService.obtenerMascotaPorId(id);
+        if (opt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        String fotoUrl = opt.get().getFotoUrl();
+        if (fotoUrl == null || fotoUrl.isBlank() || !fotoUrl.startsWith("data:")) {
+            return ResponseEntity.notFound().build();
+        }
+        int commaIdx = fotoUrl.indexOf(',');
+        if (commaIdx < 0) {
+            return ResponseEntity.badRequest().build();
+        }
+        String contentType = fotoUrl.substring(5, commaIdx).split(";")[0];
+        try {
+            byte[] imageBytes = Base64.getDecoder().decode(fotoUrl.substring(commaIdx + 1));
+            return ResponseEntity.ok()
+                .header("Content-Type", contentType)
+                .header("Cache-Control", "public, max-age=86400")
+                .body(imageBytes);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     // ── Endpoints heredados ────────────────────────────────────────

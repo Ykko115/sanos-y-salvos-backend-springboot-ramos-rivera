@@ -142,10 +142,10 @@ class NotificacionMatchServiceTest {
 
         when(notificacionMatchRepository.findByUsuarioId(10L)).thenReturn(List.of(notif));
 
-        List<NotificacionMatch> resultado = notificacionMatchService.obtenerPorUsuario(10L);
+        List<NotificacionMatch> notifs = notificacionMatchService.obtenerPorUsuario(10L);
 
-        assertThat(resultado).hasSize(1);
-        assertThat(resultado.get(0).getUsuarioId()).isEqualTo(10L);
+        assertThat(notifs).hasSize(1);
+        assertThat(notifs.get(0).getUsuarioId()).isEqualTo(10L);
     }
 
     @Test
