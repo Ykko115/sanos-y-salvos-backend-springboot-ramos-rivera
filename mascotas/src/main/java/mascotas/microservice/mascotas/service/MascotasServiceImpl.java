@@ -25,19 +25,10 @@ public class MascotasServiceImpl implements MascotasService {
 
     private static final Logger logger = LoggerFactory.getLogger(MascotasServiceImpl.class);
 
-    @Autowired
-    private MascotasRepository mascotasRepository;
-
     private final MascotasRepository mascotasRepository;
     private final WebClient.Builder webClientBuilder;
     private final MascotaMatcherClient mascotaMatcherClient;
     private final NotificacionMatchService notificacionMatchService;
-
-    @Autowired
-    private MascotaMatcherClient mascotaMatcherClient;
-
-    @Autowired
-    private NotificacionMatchService notificacionMatchService;
 
     @Autowired
     private KafkaProducerService kafkaProducerService;
