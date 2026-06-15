@@ -71,6 +71,14 @@ services:
       postgres:
         condition: service_healthy
 
+  fastapi-matcher:
+    image: fastapi-matcher:local
+    container_name: sanos-salvos-fastapi-matcher
+    environment:
+      SPRING_URL: http://apigateway:8080
+    ports:
+      - "8000:8000"
+
   mascotas:
     image: ${DOCKER_HUB_USER:-nyko115}/sanos-y-salvos-backend:mascotas-${IMAGE_TAG:-latest}
     environment:
@@ -80,7 +88,7 @@ services:
       DB_USER: ${DB_USER:-user_adm}
       DB_PASSWORD: ${DB_PASSWORD:-Nykolas2111}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      FASTAPI_URL: http://host.docker.internal:8000
+      FASTAPI_URL: http://fastapi-matcher:8000
       REPORTES_SERVICE_URL: http://reportes:8083
 
     ports:
@@ -89,6 +97,8 @@ services:
       postgres:
         condition: service_healthy
       kafka:
+        condition: service_started
+      fastapi-matcher:
         condition: service_started
 
   reportes:
