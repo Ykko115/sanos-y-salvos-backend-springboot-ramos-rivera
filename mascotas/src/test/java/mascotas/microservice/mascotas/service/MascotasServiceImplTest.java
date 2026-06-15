@@ -14,6 +14,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -21,6 +22,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import java.util.concurrent.TimeUnit;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -47,6 +49,9 @@ class MascotasServiceImplTest {
     @Mock
     private NotificacionMatchService notificacionMatchService;
 
+    @Mock
+    private KafkaProducerService kafkaProducerService;
+
     @InjectMocks
     private MascotasServiceImpl mascotasService;
 
@@ -55,6 +60,8 @@ class MascotasServiceImplTest {
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(mascotasService, "usuarioServiceUrl", "http://localhost:8081");
+        ReflectionTestUtils.setField(mascotasService, "matcherScoreAlerta", 0.60);
+        ReflectionTestUtils.setField(mascotasService, "reportesServiceUrl", "http://localhost:8083");
 
         mascota = new Mascotas();
         mascota.setId(1L);
@@ -181,8 +188,9 @@ class MascotasServiceImplTest {
 
         mascotasService.crearMascota(mascota);
 
-        verify(notificacionMatchService)
-                .notificarCoincidencia(mascota, match);
+        await().atMost(3, TimeUnit.SECONDS).untilAsserted(() ->
+            verify(notificacionMatchService)
+                .notificarCoincidencia(mascota, match, candidata));
     }
 
     @Test
@@ -197,8 +205,8 @@ class MascotasServiceImplTest {
 
         MatchResultDTO match = new MatchResultDTO();
         match.setMascotaId(2L);
-        match.setScore(0.70);
-        match.setPorcentaje(70);
+        match.setScore(0.50);  // por debajo del umbral 0.60 y alerta=false → no debe notificar
+        match.setPorcentaje(50);
         match.setAlerta(false);
 
         when(mascotasRepository.save(any(Mascotas.class)))
@@ -216,8 +224,12 @@ class MascotasServiceImplTest {
 
         mascotasService.crearMascota(mascota);
 
-        verify(notificacionMatchService, never())
-                .notificarCoincidencia(any(), any());
+        // esperar a que el async termine (confirmar que el matcher fue invocado)
+        await().atMost(3, TimeUnit.SECONDS).untilAsserted(() ->
+            verify(mascotaMatcherClient).buscarCoincidencias(any(Mascotas.class), anyList()));
+
+        // el score (0.50) está por debajo del umbral (0.60) y alerta=false → no debe notificar
+        verify(notificacionMatchService, never()).notificarCoincidencia(any(), any(), any());
     }
     // ─── obtenerMascotaPorId ──────────────────────────────────────────────────
 

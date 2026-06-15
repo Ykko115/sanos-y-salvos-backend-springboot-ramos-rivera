@@ -2,6 +2,7 @@ package mascotas.microservice.mascotas.controller;
 
 import mascotas.microservice.mascotas.entity.Mascotas;
 import mascotas.microservice.mascotas.service.MascotasService;
+import mascotas.microservice.mascotas.service.NotificacionMatchService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,9 @@ class MascotasControllerTest {
 
     @MockitoBean
     private MascotasService mascotasService;
+
+    @MockitoBean
+    private NotificacionMatchService notificacionMatchService;
 
     @MockitoBean
     private WebClient.Builder webClientBuilder;

@@ -6,6 +6,7 @@ import mascotas.microservice.mascotas.entity.NotificacionMatch;
 import mascotas.microservice.mascotas.service.MascotasService;
 import mascotas.microservice.mascotas.service.NotificacionMatchService;
 import mascotas.microservice.mascotas.dto.UsuarioDTO;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @RestController
 @RequestMapping("/api/mascotas")
