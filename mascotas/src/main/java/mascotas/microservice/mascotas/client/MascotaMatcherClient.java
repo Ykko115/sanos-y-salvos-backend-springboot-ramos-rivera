@@ -8,7 +8,6 @@ import mascotas.microservice.mascotas.dto.MatchResultDTO;
 import mascotas.microservice.mascotas.entity.Mascotas;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
@@ -18,8 +17,6 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
-import java.util.stream.Collectors;
-import java.util.ArrayList;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import mascotas.microservice.mascotas.exception.ServicioNoDisponibleException;
 
@@ -28,8 +25,7 @@ public class MascotaMatcherClient {
 
     private static final Logger logger = LoggerFactory.getLogger(MascotaMatcherClient.class);
 
-    @Autowired
-    private WebClient.Builder webClientBuilder;
+    private final WebClient.Builder webClientBuilder;
     /** Nombre de la instancia de Circuit Breaker (ver application.properties). */
     private static final String CB_FASTAPI = "fastapiMatcher";
 
@@ -74,7 +70,7 @@ public class MascotaMatcherClient {
 
     private MascotaInputDTO toDTO(Mascotas m) {
         List<String> senas = m.getSenas() != null
-            ? m.getSenas().stream().map(Enum::name).collect(Collectors.toList())
+            ? m.getSenas().stream().map(Enum::name).toList()
             : Collections.emptyList();
         return new MascotaInputDTO(
             m.getId(),
@@ -95,6 +91,14 @@ public class MascotaMatcherClient {
 
     // ── Método principal ─────────────────────────────────────────────────────
 
+    @SuppressWarnings("java:S1172")
+    public List<MatchResultDTO> buscarCoincidenciasFallback(Mascotas mascotaReportada,
+                                                             List<Mascotas> candidatas,
+                                                             Throwable t) {
+        logger.warn("[CB] fastapiMatcher abierto — omitiendo matching: {}", t.getMessage());
+        return Collections.emptyList();
+    }
+
     /**
      * Llama a POST /api/match en el microservicio FastAPI.
      */
@@ -108,7 +112,7 @@ public class MascotaMatcherClient {
         try {
             MatchRequestBody body = new MatchRequestBody(
                 toDTO(mascotaReportada),
-                candidatas.stream().map(this::toDTO).collect(Collectors.toList())
+                candidatas.stream().map(this::toDTO).toList()
             );
 
             List<MatchResultDTO> resultado = webClientBuilder.build()

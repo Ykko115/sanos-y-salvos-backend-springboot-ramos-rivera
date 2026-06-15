@@ -7,7 +7,6 @@ import java.util.concurrent.CompletableFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,9 +28,7 @@ public class MascotasServiceImpl implements MascotasService {
     private final WebClient.Builder webClientBuilder;
     private final MascotaMatcherClient mascotaMatcherClient;
     private final NotificacionMatchService notificacionMatchService;
-
-    @Autowired
-    private KafkaProducerService kafkaProducerService;
+    private final KafkaProducerService kafkaProducerService;
 
     @Value("${usuario.service.url:http://usuario:8081}")
     private String usuarioServiceUrl;
@@ -41,14 +38,17 @@ public class MascotasServiceImpl implements MascotasService {
 
     @Value("${reportes.service.url:http://reportes:8083}")
     private String reportesServiceUrl;
+
     public MascotasServiceImpl(MascotasRepository mascotasRepository,
                                WebClient.Builder webClientBuilder,
                                MascotaMatcherClient mascotaMatcherClient,
-                               NotificacionMatchService notificacionMatchService) {
+                               NotificacionMatchService notificacionMatchService,
+                               KafkaProducerService kafkaProducerService) {
         this.mascotasRepository = mascotasRepository;
         this.webClientBuilder = webClientBuilder;
         this.mascotaMatcherClient = mascotaMatcherClient;
         this.notificacionMatchService = notificacionMatchService;
+        this.kafkaProducerService = kafkaProducerService;
     }
 
     @Override
@@ -257,10 +257,7 @@ public class MascotasServiceImpl implements MascotasService {
                 .bodyToMono(Object.class)
                 .block();
             return true;
-        } catch (WebClientResponseException.NotFound e) {
-            return false;
         } catch (Exception e) {
-            // Si hay error de red, se puede considerar como no encontrado o lanzar excepción
             return false;
         }
     }
