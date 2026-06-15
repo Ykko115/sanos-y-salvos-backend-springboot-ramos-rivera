@@ -259,6 +259,15 @@ class UsuarioRestControllerTest {
             .andExpect(jsonPath("$.email").value("juan@test.com"));
     }
 
+    @Test
+    @WithMockUser
+    void obtenerPorId_retornaNull_debeRetornar404() throws Exception {
+        when(usuarioService.ObtenerPorId(2L)).thenReturn(null);
+
+        mockMvc.perform(get("/api/usuario/2"))
+            .andExpect(status().isNotFound());
+    }
+
     // ─── login con excepcion ──────────────────────────────────────────────────
 
     @Test
@@ -272,5 +281,144 @@ class UsuarioRestControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"juan@test.com\",\"password\":\"pass\"}"))
             .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    @WithMockUser
+    void login_usuarioAdmin_debeRetornarRolAdmin() throws Exception {
+        usuario.setRol(Usuario.Rol.ADMIN);
+        when(usuarioService.buscarPorEmail("juan@test.com")).thenReturn(usuario);
+        when(passwordEncoder.matches("password123", "hashed")).thenReturn(true);
+        when(jwtUtil.generateToken(anyString(), anyList())).thenReturn("admin.token.jwt");
+
+        mockMvc.perform(post("/api/usuario/login")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"juan@test.com\",\"password\":\"password123\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.token").value("admin.token.jwt"));
+    }
+
+    // ─── callerIsAdmin branches ───────────────────────────────────────────────
+
+    @Test
+    @WithMockUser
+    void crear_conHeaderNoBearer_debeCrearComoUser() throws Exception {
+        when(jwtUtil.generateToken(anyString(), anyList())).thenReturn("token.jwt.test");
+        when(usuarioService.crear(any(CrearUsuarioDTO.class))).thenReturn(usuario);
+
+        mockMvc.perform(post("/api/usuario")
+                .with(csrf())
+                .header("Authorization", "Basic dXNlcjpwYXNz")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"nombre\":\"Juan\",\"email\":\"juan@test.com\",\"password\":\"pass\",\"rut\":\"12345678-9\"}"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser
+    void crear_conBearerTokenAdminValido_debePermitirRolAdmin() throws Exception {
+        when(jwtUtil.getClaimsFromToken("valid.admin.token")).thenReturn(null);
+        when(jwtUtil.extractRoles(null)).thenReturn(List.of("ROLE_ADMIN"));
+        when(jwtUtil.generateToken(anyString(), anyList())).thenReturn("nuevo.token");
+        when(usuarioService.crear(any(CrearUsuarioDTO.class))).thenReturn(usuario);
+
+        mockMvc.perform(post("/api/usuario")
+                .with(csrf())
+                .header("Authorization", "Bearer valid.admin.token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"nombre\":\"Admin\",\"email\":\"admin@test.com\",\"password\":\"pass\",\"rut\":\"99999999-9\",\"rol\":\"ADMIN\"}"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser
+    void crear_conBearerTokenInvalido_debeCrearComoUser() throws Exception {
+        when(jwtUtil.getClaimsFromToken(anyString())).thenThrow(new RuntimeException("token inválido"));
+        when(jwtUtil.generateToken(anyString(), anyList())).thenReturn("token.jwt.test");
+        when(usuarioService.crear(any(CrearUsuarioDTO.class))).thenReturn(usuario);
+
+        mockMvc.perform(post("/api/usuario")
+                .with(csrf())
+                .header("Authorization", "Bearer token.invalido")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"nombre\":\"Juan\",\"email\":\"juan@test.com\",\"password\":\"pass\",\"rut\":\"12345678-9\"}"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser
+    void actualizar_sinAdmin_debeIgnorarRolYActivo() throws Exception {
+        when(usuarioService.actualizar(eq(1L), any(ActualizarUsuarioDTO.class))).thenReturn(usuario);
+
+        mockMvc.perform(put("/api/usuario/1")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"nombre\":\"Carlos\",\"rol\":\"ADMIN\",\"activo\":false}"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser
+    void crear_emailNull_debeOmitirToken() throws Exception {
+        when(usuarioService.crear(any(CrearUsuarioDTO.class))).thenReturn(usuario);
+
+        mockMvc.perform(post("/api/usuario")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"nombre\":\"Juan\",\"password\":\"pass\",\"rut\":\"12345678-9\"}"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser
+    void crear_servicioRetornaNull_debeRetornarUserNull() throws Exception {
+        when(jwtUtil.generateToken(anyString(), anyList())).thenReturn("token");
+        when(usuarioService.crear(any(CrearUsuarioDTO.class))).thenReturn(null);
+
+        mockMvc.perform(post("/api/usuario")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"nombre\":\"Juan\",\"email\":\"juan@test.com\",\"password\":\"pass\",\"rut\":\"12345678-9\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.user").doesNotExist());
+    }
+
+    @Test
+    @WithMockUser
+    void obtenerPorId_fetchMascotasLanzaExcepcion_debeRetornar200() throws Exception {
+        when(usuarioService.ObtenerPorId(1L)).thenReturn(usuario);
+
+        WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
+        when(responseSpec.bodyToMono(any(Class.class)))
+            .thenThrow(new RuntimeException("timeout"));
+        @SuppressWarnings("rawtypes")
+        WebClient.RequestHeadersSpec headersSpec = mock(WebClient.RequestHeadersSpec.class);
+        when(headersSpec.retrieve()).thenReturn(responseSpec);
+        @SuppressWarnings("rawtypes")
+        WebClient.RequestHeadersUriSpec uriSpec = mock(WebClient.RequestHeadersUriSpec.class);
+        when(uriSpec.uri(anyString())).thenReturn(headersSpec);
+        WebClient webClientMock = mock(WebClient.class);
+        when(webClientMock.get()).thenReturn(uriSpec);
+        when(webClientBuilder.build()).thenReturn(webClientMock);
+
+        mockMvc.perform(get("/api/usuario/1"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser
+    void crear_conBearerAdminYExtractRolesAdmin_debePermitirRolAdmin() throws Exception {
+        when(jwtUtil.getClaimsFromToken(anyString())).thenReturn(null);
+        when(jwtUtil.extractRoles(any())).thenReturn(List.of("ROLE_ADMIN"));
+        when(jwtUtil.generateToken(anyString(), anyList())).thenReturn("nuevo.token");
+        when(usuarioService.crear(any(CrearUsuarioDTO.class))).thenReturn(usuario);
+
+        mockMvc.perform(post("/api/usuario")
+                .with(csrf())
+                .header("Authorization", "Bearer some.admin.token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"nombre\":\"Admin\",\"email\":\"admin@test.com\",\"password\":\"pass\",\"rut\":\"99999999-9\",\"rol\":\"ADMIN\"}"))
+            .andExpect(status().isOk());
     }
 }

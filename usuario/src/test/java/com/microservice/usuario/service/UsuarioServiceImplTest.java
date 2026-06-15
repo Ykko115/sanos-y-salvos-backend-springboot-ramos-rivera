@@ -256,4 +256,81 @@ class UsuarioServiceImplTest {
 
         assertThat(resultado).isNotNull();
     }
+
+    @Test
+    void crear_conRolNull_debeAsignarUser() {
+        crearDTO.setRol(null);
+        when(usuarioRepository.existsByEmail(anyString())).thenReturn(false);
+        when(usuarioRepository.existsByRut(anyString())).thenReturn(false);
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed");
+        when(usuarioRepository.save(any(Usuario.class))).thenReturn(usuario);
+
+        Usuario resultado = usuarioService.crear(crearDTO);
+
+        assertThat(resultado).isNotNull();
+    }
+
+    @Test
+    void crear_passwordEncoderLanzaExcepcion_debeLanzarIllegalState() {
+        when(usuarioRepository.existsByEmail(anyString())).thenReturn(false);
+        when(usuarioRepository.existsByRut(anyString())).thenReturn(false);
+        when(passwordEncoder.encode(anyString())).thenThrow(new RuntimeException("encoder error"));
+
+        assertThatThrownBy(() -> usuarioService.crear(crearDTO))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("Error hashing password");
+    }
+
+    @Test
+    void actualizar_usuarioNulo_debeRetornarNull() {
+        when(usuarioRepository.findById(999L)).thenReturn(Optional.empty());
+        ActualizarUsuarioDTO dto = new ActualizarUsuarioDTO();
+
+        assertThatThrownBy(() -> usuarioService.actualizar(999L, dto))
+            .isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    void actualizar_conRutTelefonoRolActivo_debeActualizar() {
+        ActualizarUsuarioDTO dto = new ActualizarUsuarioDTO();
+        dto.setRut("11111111-1");
+        dto.setTelefono(111111111);
+        dto.setRol("ADMIN");
+        dto.setActivo(false);
+
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuario));
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Usuario resultado = usuarioService.actualizar(1L, dto);
+
+        assertThat(resultado.getRut()).isEqualTo("11111111-1");
+        assertThat(resultado.getRol()).isEqualTo(Usuario.Rol.ADMIN);
+        assertThat(resultado.getActivo()).isFalse();
+    }
+
+    @Test
+    void actualizar_conRolInvalido_debeDejarRolActual() {
+        ActualizarUsuarioDTO dto = new ActualizarUsuarioDTO();
+        dto.setRol("ROL_INVALIDO");
+
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuario));
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Usuario resultado = usuarioService.actualizar(1L, dto);
+
+        assertThat(resultado.getRol()).isEqualTo(Usuario.Rol.USER);
+    }
+
+    @Test
+    void actualizar_passwordEncoderLanzaExcepcion_debeLanzarIllegalState() {
+        ActualizarUsuarioDTO dto = new ActualizarUsuarioDTO();
+        dto.setPassword("nuevaPass");
+
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.encode("nuevaPass")).thenThrow(new RuntimeException("encoder error"));
+
+        assertThatThrownBy(() -> usuarioService.actualizar(1L, dto))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("Error hashing password");
+    }
 }
