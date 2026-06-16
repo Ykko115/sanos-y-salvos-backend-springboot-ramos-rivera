@@ -1,12 +1,15 @@
 package com.microservice.reportes.service;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.microservice.reportes.client.ServicioValidacionClient;
 import com.microservice.reportes.entity.Reportes;
 import com.microservice.reportes.repository.ReportesRepository;
 
@@ -14,11 +17,35 @@ import com.microservice.reportes.repository.ReportesRepository;
 @Transactional
 public class ReportesServiceImpl  implements ReportesService{
 
-    @Autowired
-    private ReportesRepository reportesRepository;
+    private static final Logger logger = LoggerFactory.getLogger(ReportesServiceImpl.class);
+
+
+    private final ReportesRepository reportesRepository;
+    private final ServicioValidacionClient servicioValidacionClient;
+
+    public ReportesServiceImpl(ReportesRepository reportesRepository,
+                               ServicioValidacionClient servicioValidacionClient) {
+        this.reportesRepository = reportesRepository;
+        this.servicioValidacionClient = servicioValidacionClient;
+    }
 
     @Override
-    public Reportes creaReporte(Reportes reportes){
+    public Reportes creaReporte(Reportes reportes) {
+
+        logger.info("Iniciando creación de reporte: {}", reportes);
+
+        // Solo validar mascota si viene un mascotaId (reporte autenticado).
+        // La validación remota está protegida por un Circuit Breaker (Resilience4j).
+        if (reportes.getMascotaId() != null) {
+            servicioValidacionClient.validarMascotaExiste(reportes.getMascotaId());
+        }
+
+        // Solo validar usuario si viene un usuarioId (protegido por Circuit Breaker).
+        if (reportes.getUsuarioId() != null) {
+            servicioValidacionClient.validarUsuarioExiste(reportes.getUsuarioId());
+        }
+
+        logger.info("Guardando reporte en base de datos");
         return reportesRepository.save(reportes);
     }
 
@@ -41,16 +68,20 @@ public class ReportesServiceImpl  implements ReportesService{
         if(reporteExistente.isPresent()){
             Reportes reporteActualizado = reporteExistente.get();
             reporteActualizado.setDescripcion(reportes.getDescripcion());
-            reporteActualizado.setCoordenadas(reportes.getCoordenadas());
+            reporteActualizado.setUbicacion(reportes.getUbicacion());
             reporteActualizado.setEstado(reportes.getEstado());
             reporteActualizado.setImg(reportes.getImg());
             reporteActualizado.setMascotaId(reportes.getMascotaId());
             reporteActualizado.setUsuarioId(reportes.getUsuarioId());
+            reporteActualizado.setNombre_mascota(reportes.getNombre_mascota());
+            reporteActualizado.setNombre_usuario(reportes.getNombre_usuario());
+            reporteActualizado.setFechaReporte(reportes.getFechaReporte());
+            reporteActualizado.setTelefono(reportes.getTelefono());
 
             return reportesRepository.save(reporteActualizado);
         }
 
-        throw new RuntimeException("Reporte no encontrado por la id: "+ id);
+        throw new NoSuchElementException("Reporte no encontrado por la id: " + id);
     }
 
     @Override
@@ -58,7 +89,7 @@ public class ReportesServiceImpl  implements ReportesService{
         if(reportesRepository.existsById(id)){
             reportesRepository.deleteById(id);
         } else {
-            throw new RuntimeException("Reporte no ha sido encontrado");
+            throw new NoSuchElementException("Reporte no ha sido encontrado");
         }
     }
 
@@ -78,6 +109,13 @@ public class ReportesServiceImpl  implements ReportesService{
     @Transactional(readOnly = true)
     public List<Reportes> obtenerReportesPorMascota(Long mascotaId) {
         return reportesRepository.findByMascotaId(mascotaId);
+    }
+
+    @Override
+    public void eliminarReportesPorMascotaId(Long mascotaId) {
+        List<Reportes> reportes = reportesRepository.findByMascotaId(mascotaId);
+        reportes.forEach(r -> reportesRepository.deleteById(r.getId()));
+        logger.info("Eliminados {} reporte(s) para mascotaId={}", reportes.size(), mascotaId);
     }
 
 }

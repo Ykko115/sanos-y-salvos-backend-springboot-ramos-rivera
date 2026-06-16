@@ -1,54 +1,139 @@
 package mascotas.microservice.mascotas.controller;
 
+import mascotas.microservice.mascotas.dto.MascotaDTO;
 import mascotas.microservice.mascotas.entity.Mascotas;
+import mascotas.microservice.mascotas.entity.NotificacionMatch;
 import mascotas.microservice.mascotas.service.MascotasService;
-import org.springframework.beans.factory.annotation.Autowired;
+import mascotas.microservice.mascotas.service.NotificacionMatchService;
+import mascotas.microservice.mascotas.dto.UsuarioDTO;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpHeaders;
 
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-
 @RestController
 @RequestMapping("/api/mascotas")
+@CrossOrigin(origins = { "http://localhost:5173", "http://localhost:5174" })
 public class MascotasController {
 
-    @Autowired
-    private MascotasService mascotasService;
+    private final MascotasService mascotasService;
+    private final NotificacionMatchService notificacionMatchService;
+    private final WebClient.Builder webClientBuilder;
 
+    @Value("${usuario.service.urls:http://usuario:8081}")
+    private String usuarioServiceUrls;
+
+    @Value("${internal.jwt:}")
+    private String internalJwt;
+
+    public MascotasController(MascotasService mascotasService,
+                               NotificacionMatchService notificacionMatchService,
+                               WebClient.Builder webClientBuilder) {
+        this.mascotasService = mascotasService;
+        this.notificacionMatchService = notificacionMatchService;
+        this.webClientBuilder = webClientBuilder;
+    }
+
+    private UsuarioDTO obtenerUsuarioDesdeCualquierUrl(Long usuarioId) {
+        for (String baseUrl : Arrays.asList(usuarioServiceUrls.split(","))) {
+            try {
+                WebClient.RequestHeadersSpec<?> request = webClientBuilder.build()
+                        .get()
+                        .uri(baseUrl.trim() + "/api/usuario/" + usuarioId + "?plain=true");
+                if (internalJwt != null && !internalJwt.isBlank()) {
+                    request = request.header(HttpHeaders.AUTHORIZATION, internalJwt);
+                }
+                return request.retrieve().bodyToMono(UsuarioDTO.class).block();
+            } catch (Exception ignored) { /* usuario service unavailable — skip enrichment */ }
+        }
+        return null;
+    }
+
+    // ── GET /api/mascotas/enums ────────────────────────────────────
+    @GetMapping("/enums")
+    public ResponseEntity<Map<String, Object>> obtenerEnums() {
+        return ResponseEntity.ok(Map.of(
+            "especies",   Arrays.stream(Mascotas.Especie.values()).map(Enum::name).toList(),
+            "estados",    Arrays.stream(Mascotas.Estado.values()).map(Enum::name).toList(),
+            "colores",    Arrays.stream(Mascotas.Color.values()).map(Enum::name).toList(),
+            "tamanos",    Arrays.stream(Mascotas.Tamano.values()).map(Enum::name).toList(),
+            "pelajes",    Arrays.stream(Mascotas.Pelaje.values()).map(Enum::name).toList(),
+            "rangosEdad", Arrays.stream(Mascotas.RangoEdad.values()).map(Enum::name).toList(),
+            "senas",      Arrays.stream(Mascotas.Sena.values()).map(Enum::name).toList()
+        ));
+    }
+
+    // ── POST /api/mascotas ─────────────────────────────────────────
     @PostMapping
-    public ResponseEntity<Mascotas> crearMascota(@RequestBody Mascotas mascota) {
+    public ResponseEntity<Mascotas> crearMascota(@RequestBody MascotaDTO dto) {
         try {
-            Mascotas mascotaCreada = mascotasService.crearMascota(mascota);
-            return new ResponseEntity<>(mascotaCreada, HttpStatus.CREATED);
+            Mascotas creada = mascotasService.crearMascota(dto.toEntity());
+            return new ResponseEntity<>(creada, HttpStatus.CREATED);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Mascotas> obtenerMascotaPorId(@PathVariable Long id) {
-        Optional<Mascotas> mascota = mascotasService.obtenerMascotaPorId(id);
-        return mascota.map(value -> new ResponseEntity<>(value, HttpStatus.OK))
-                .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
-    }
-
+    // ── GET /api/mascotas ──────────────────────────────────────────
     @GetMapping
-    public ResponseEntity<List<Mascotas>> obtenerTodasLasMascotas() {
+    public ResponseEntity<Object> obtenerTodasLasMascotas(
+            @RequestParam(required = false) String estado) {
         try {
-            List<Mascotas> mascotas = mascotasService.obtenerTodasLasMascotas();
-            return new ResponseEntity<>(mascotas, HttpStatus.OK);
+            List<Mascotas> mascotas;
+            if (estado != null && !estado.isBlank()) {
+                Mascotas.Estado estadoEnum = Mascotas.Estado.valueOf(estado.toUpperCase());
+                mascotas = mascotasService.obtenerMascotasPorEstado(estadoEnum);
+            } else {
+                mascotas = mascotasService.obtenerTodasLasMascotas();
+            }
+            List<MascotaConUsuarioResponse> result = mascotas.stream().map(m -> {
+                UsuarioDTO usuario = m.getUsuarioId() != null
+                    ? obtenerUsuarioDesdeCualquierUrl(m.getUsuarioId()) : null;
+                return new MascotaConUsuarioResponse(m, usuario);
+            }).toList();
+            return new ResponseEntity<>(result, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Estado inválido: " + estado);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Mascotas> actualizarMascota(@PathVariable Long id, @RequestBody Mascotas mascota) {
+    // ── GET /api/mascotas/{id} ─────────────────────────────────────
+    @GetMapping("/{id}")
+    public ResponseEntity<Object> obtenerMascotaPorId(@PathVariable Long id) {
+        Optional<Mascotas> mascotaOpt = mascotasService.obtenerMascotaPorId(id);
+        if (mascotaOpt.isEmpty()) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        Mascotas mascota = mascotaOpt.get();
+        UsuarioDTO usuario = mascota.getUsuarioId() != null
+            ? obtenerUsuarioDesdeCualquierUrl(mascota.getUsuarioId()) : null;
+        return ResponseEntity.ok(new MascotaConUsuarioResponse(mascota, usuario));
+    }
+
+    // ── GET /api/mascotas/usuario/{usuarioId} ──────────────────────
+    @GetMapping("/usuario/{usuarioId}")
+    public ResponseEntity<List<Mascotas>> obtenerMascotasPorUsuarioId(@PathVariable Long usuarioId) {
         try {
-            Mascotas mascotaActualizada = mascotasService.actualizarMascota(id, mascota);
-            return new ResponseEntity<>(mascotaActualizada, HttpStatus.OK);
+            return new ResponseEntity<>(mascotasService.obtenerMascotasPorUsuarioId(usuarioId), HttpStatus.OK);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // ── PUT /api/mascotas/{id} ─────────────────────────────────────
+    @PutMapping("/{id}")
+    public ResponseEntity<Mascotas> actualizarMascota(@PathVariable Long id, @RequestBody MascotaDTO dto) {
+        try {
+            Mascotas actualizada = mascotasService.actualizarMascota(id, dto.toEntity());
+            return new ResponseEntity<>(actualizada, HttpStatus.OK);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         } catch (Exception e) {
@@ -56,30 +141,90 @@ public class MascotasController {
         }
     }
 
+    // ── PUT /api/mascotas/{id}/estado ──────────────────────────────
+    @PutMapping("/{id}/estado")
+    public ResponseEntity<Object> actualizarEstado(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body) {
+        try {
+            String estadoStr = body.get("estado");
+            if (estadoStr == null) return ResponseEntity.badRequest().body("Falta el campo 'estado'");
+            Mascotas.Estado estado = Mascotas.Estado.valueOf(estadoStr.toUpperCase());
+            Mascotas actualizada = mascotasService.actualizarEstado(id, estado);
+            return ResponseEntity.ok(actualizada);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Estado inválido: " + body.get("estado"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    // ── DELETE /api/mascotas/{id} ──────────────────────────────────
     @DeleteMapping("/{id}")
-    public ResponseEntity<HttpStatus> eliminarMascota(@PathVariable Long id) {
+    public ResponseEntity<Void> eliminarMascota(@PathVariable Long id) {
         try {
             mascotasService.eliminarMascota(id);
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);
         } catch (RuntimeException e) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
+    // ── Notificaciones de coincidencias por usuario ────────────────
+    @GetMapping("/notificaciones/{usuarioId}")
+    public ResponseEntity<List<NotificacionMatch>> obtenerNotificaciones(@PathVariable Long usuarioId) {
+        return ResponseEntity.ok(notificacionMatchService.obtenerPorUsuario(usuarioId));
+    }
+
+    @PutMapping("/notificaciones/{id}/leida")
+    public ResponseEntity<Void> marcarNotificacionLeida(@PathVariable Long id) {
+        notificacionMatchService.marcarLeida(id);
+        return ResponseEntity.ok().build();
+    }
+
+    // ── GET /api/mascotas/{id}/foto ────────────────────────────────
+    @GetMapping("/{id}/foto")
+    public ResponseEntity<byte[]> obtenerFoto(@PathVariable Long id) {
+        Optional<Mascotas> opt = mascotasService.obtenerMascotaPorId(id);
+        if (opt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        String fotoUrl = opt.get().getFotoUrl();
+        if (fotoUrl == null || fotoUrl.isBlank() || !fotoUrl.startsWith("data:")) {
+            return ResponseEntity.notFound().build();
+        }
+        int commaIdx = fotoUrl.indexOf(',');
+        if (commaIdx < 0) {
+            return ResponseEntity.badRequest().build();
+        }
+        String contentType = fotoUrl.substring(5, commaIdx).split(";")[0];
+        try {
+            byte[] imageBytes = Base64.getDecoder().decode(fotoUrl.substring(commaIdx + 1));
+            return ResponseEntity.ok()
+                .header("Content-Type", contentType)
+                .header("Cache-Control", "public, max-age=86400")
+                .body(imageBytes);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // ── Endpoints heredados ────────────────────────────────────────
     @GetMapping("/nombre/{nombre}")
     public ResponseEntity<Mascotas> obtenerMascotaPorNombre(@PathVariable String nombre) {
         Optional<Mascotas> mascota = mascotasService.obtenerMascotaPorNombre(nombre);
-        return mascota.map(value -> new ResponseEntity<>(value, HttpStatus.OK))
+        return mascota.map(v -> new ResponseEntity<>(v, HttpStatus.OK))
                 .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
 
-    @GetMapping("/especie/{especie}")
+   @GetMapping("/especie/{especie}")
     public ResponseEntity<List<Mascotas>> obtenerMascotasPorEspecie(@PathVariable String especie) {
         try {
-            List<Mascotas> mascotas = mascotasService.obtenerMascotasPorEspecie(especie);
+            Mascotas.Especie especieEnum = Mascotas.Especie.valueOf(especie.toUpperCase());
+            List<Mascotas> mascotas = mascotasService.obtenerMascotasPorEspecie(especieEnum);
             return new ResponseEntity<>(mascotas, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
@@ -88,21 +233,23 @@ public class MascotasController {
     @GetMapping("/raza/{raza}")
     public ResponseEntity<List<Mascotas>> obtenerMascotasPorRaza(@PathVariable String raza) {
         try {
-            List<Mascotas> mascotas = mascotasService.obtenerMascotasPorRaza(raza);
-            return new ResponseEntity<>(mascotas, HttpStatus.OK);
+            return new ResponseEntity<>(mascotasService.obtenerMascotasPorRaza(raza), HttpStatus.OK);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
-    @GetMapping("/usuario/{usuarioId}")
-    public ResponseEntity<List<Mascotas>> obtenerMascotasPorUsuarioId(@PathVariable Long usuarioId) {
-        try {
-            List<Mascotas> mascotas = mascotasService.obtenerMascotasPorUsuarioId(usuarioId);
-            return new ResponseEntity<>(mascotas, HttpStatus.OK);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
+    // ── DTO de respuesta enriquecida ───────────────────────────────
+    public static class MascotaConUsuarioResponse {
+        private final Mascotas mascota;
+        private final UsuarioDTO usuario;
 
+        public MascotaConUsuarioResponse(Mascotas mascota, UsuarioDTO usuario) {
+            this.mascota = mascota;
+            this.usuario = usuario;
+        }
+
+        public Mascotas getMascota() { return mascota; }
+        public UsuarioDTO getUsuario() { return usuario; }
+    }
 }

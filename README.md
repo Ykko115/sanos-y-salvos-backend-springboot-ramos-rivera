@@ -1,113 +1,219 @@
-# sanos-y-salvos-backend-springboot-ramos-rivera
-Backend de Springboot para el proyecto Sanos y Salvos de los estudiante Nicolas Ramos y Alberto Rivera del instituto profecional DuocUC
-# Sanos y Salvos - Backend 🐾
+# Sanos y Salvos — Backend Spring Boot (Microservicios)
 
-[![Java](https://img.shields.io/badge/Java-17%2B-blue?logo=java)](https://adoptium.net/) [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-brightgreen?logo=springboot)](https://spring.io/projects/spring-boot) [![Maven](https://img.shields.io/badge/Maven-3.8%2B-orange?logo=apachemaven)](https://maven.apache.org/)
+Monorepo con los microservicios Java del proyecto **Sanos y Salvos**, plataforma para reportar y encontrar mascotas perdidas. Desarrollado por **Nicolás Ramos** y **Alberto Rivera** — Instituto Profesional DUOC UC, FullStack 3.
 
-## 1. 📝 Descripción general y arquitectura
+---
 
-**Sanos y Salvos** es el backend de una plataforma veterinaria, desarrollado bajo una arquitectura de microservicios desacoplados y un BFF (Backend For Frontend) que centraliza la comunicación con el frontend React. El sistema está compuesto por cuatro módulos Maven independientes:
+## Arquitectura general
 
-- **apigateway/**: BFF que enruta y centraliza las peticiones del frontend.
-- **usuario/**: Microservicio de autenticación y gestión de perfiles de usuario.
-- **mascotas/**: Microservicio CRUD para la gestión de mascotas.
-- **reportes/**: Microservicio para la generación de reportes clínicos veterinarios.
+```
+                        ┌─────────────────┐
+   Clientes/Frontend ──►│  API Gateway    │:8080
+                        │  (Spring Cloud) │
+                        └────────┬────────┘
+                                 │  JWT validado aquí
+              ┌──────────────────┼──────────────────┐
+              ▼                  ▼                   ▼
+        ┌──────────┐     ┌──────────────┐    ┌────────────┐
+        │ usuario  │     │   mascotas   │    │  reportes  │
+        │  :8081   │     │    :8082     │    │   :8083    │
+        └────┬─────┘     └──────┬───────┘    └─────┬──────┘
+             │                  │  ──Kafka──►       │
+             │            ┌─────▼──────┐            │
+             │            │  FastAPI   │            │
+             │            │  Matcher   │            │
+             │            │   :8000    │            │
+             └────────────┴─────┬──────┴────────────┘
+                                │
+                        ┌───────▼────────┐
+                        │  PostgreSQL 15 │:5433
+                        │  (3 bases)     │
+                        └────────────────┘
+```
 
-Cada microservicio es autónomo, con su propia lógica, base de datos y configuración, facilitando la escalabilidad y el mantenimiento.
+---
 
-## 2. ⚙️ Tecnologías utilizadas
+## Microservicios
 
-- Java 17+
-- Spring Boot 3.x
-- Maven 3.8+
-- Spring Security
-- Spring Data JPA
-- Lombok
-- MySQL (persistencia)
+| Servicio | Puerto | Descripción |
+|----------|--------|-------------|
+| `apigateway` | 8080 | Puerta de entrada única. Valida JWT, enruta al servicio correcto y aplica circuit breakers (Resilience4j). |
+| `usuario` | 8081 | Gestión de usuarios: registro, autenticación JWT, perfil y consulta de mascotas propias. Emite el token JWT en el login. |
+| `mascotas` | 8082 | CRUD de mascotas. Publica eventos a Kafka y consulta al motor de coincidencias FastAPI. |
+| `reportes` | 8083 | Creación y consulta de reportes de mascotas perdidas/encontradas. Consume eventos de Kafka. |
+| `fastapi-matcher` | 8000 | Motor de coincidencias en Python (ver repo dedicado). |
 
-## 3. 🏗️ Patrones de diseño implementados
+---
 
-- **Repository**: Abstracción de acceso a datos en cada microservicio.
-- **Singleton**: Gestión de beans y dependencias mediante el contenedor IoC de Spring.
-- **Facade**: El módulo apigateway actúa como fachada (BFF) simplificando la interacción del frontend con los microservicios.
+## Stack tecnológico
 
-## 4. 🧩 Patrones arquitectónicos
+| Capa | Tecnología |
+|------|-----------|
+| Lenguaje | Java 17 |
+| Framework | Spring Boot 3, Spring Cloud Gateway |
+| Seguridad | Spring Security + JWT (JJWT) |
+| Persistencia | Spring Data JPA + PostgreSQL 15 |
+| Mensajería | Apache Kafka 7.4 + Zookeeper |
+| Resiliencia | Resilience4j (circuit breaker) |
+| Infraestructura | Docker + Docker Compose |
+| Calidad | SonarQube Community |
 
-- **Microservicios**: Separación de responsabilidades y despliegue independiente.
-- **BFF (Backend For Frontend)**: Capa intermedia entre frontend y microservicios.
-- **Arquitectura en capas**: Separación lógica en controladores, servicios, repositorios y entidades.
+---
 
-## 5. 📦 Arquetipos Maven utilizados
+## Seguridad — JWT
 
-- Basado en `maven-archetype-quickstart` y adaptado para proyectos Spring Boot.
+Los tokens JWT son generados por el microservicio `usuario` al hacer login y validados en cada petición por el `apigateway`.
 
-## 6. 🚦 Requisitos previos
+| Parámetro | Valor |
+|-----------|-------|
+| Algoritmo | HS256 |
+| Expiración | **10 minutos** (600 000 ms) |
+| Variable de entorno | `SECURITY_JWT_EXPIRATION_MS` |
 
-- Java 17 o superior
-- Maven 3.8 o superior
-- MySQL Server
+La expiración se configura vía variable de entorno en `docker-compose.yml` (el valor sobreescribe el `application.properties` interno de la imagen). Tras los 10 minutos el backend rechaza el token con **HTTP 401** y el frontend cierra la sesión automáticamente.
 
-## 7. 🚀 Instalación y ejecución
+---
 
-Clona el repositorio y ejecuta cada módulo de forma independiente:
+## Requisitos previos
+
+- Docker y Docker Compose instalados
+- Java 17+ y Maven 3.8+ (solo si se quiere ejecutar cada servicio localmente)
+- Cuenta en Docker Hub (para publicar imágenes con `build-push.sh`)
+
+---
+
+## Levantar el proyecto con Docker
+
+### 1. Configurar variables de entorno
 
 ```bash
-# Clonar el repositorio
-git clone <URL_DEL_REPOSITORIO>
-cd sanos-y-salvos-backend-springboot-ramos-rivera
-
-# 1. API Gateway (BFF)
-cd apigateway
-mvn clean install
-mvn spring-boot:run
-
-# 2. Microservicio Usuario
-cd ../usuario
-mvn clean install
-mvn spring-boot:run
-
-# 3. Microservicio Mascotas
-cd ../mascotas
-mvn clean install
-mvn spring-boot:run
-
-# 4. Microservicio Reportes
-cd ../reportes
-mvn clean install
-mvn spring-boot:run
+cp .env.example .env
+# Editar .env si se quieren cambiar credenciales
 ```
 
-Configura las credenciales de base de datos en el archivo `src/main/resources/application.properties` de cada microservicio.
+Variables disponibles en `.env`:
 
-## 8. 🧪 Ejecución de pruebas unitarias
+| Variable | Valor por defecto | Descripción |
+|----------|-------------------|-------------|
+| `DOCKER_HUB_USER` | `nyko115` | Usuario de Docker Hub |
+| `IMAGE_TAG` | `latest` | Tag de las imágenes |
+| `DB_USER` | `user_adm` | Usuario de PostgreSQL |
+| `DB_PASSWORD` | `Nykolas2111` | Contraseña de PostgreSQL |
 
-Desde la raíz de cada módulo:
+Variables de entorno adicionales definidas directamente en `docker-compose.yml`:
+
+| Variable | Servicio | Valor | Descripción |
+|----------|----------|-------|-------------|
+| `SECURITY_JWT_EXPIRATION_MS` | `usuario` | `600000` | Expiración del token JWT en ms (10 min) |
+| `SECURITY_JWT_SECRET` | `apigateway` | (fijo) | Clave secreta compartida para firmar/validar JWT |
+
+### 2. Levantar todos los servicios
 
 ```bash
-mvn test
+docker compose up -d
 ```
 
-## 9. 🗂️ Estructura de carpetas
+Esto inicia: PostgreSQL, Zookeeper, Kafka, Kafka UI, usuario, mascotas, reportes, apigateway, fastapi-matcher y SonarQube.
 
-```
-├── apigateway/
-│   ├── src/
-│   ├── pom.xml
-├── usuario/
-│   ├── src/
-│   ├── pom.xml
-├── mascotas/
-│   ├── src/
-│   ├── pom.xml
-├── reportes/
-│   ├── src/
-│   ├── pom.xml
-└── README.md
+### 3. Verificar que todo esté corriendo
+
+```bash
+docker compose ps
 ```
 
-## 10. 👥 Integrantes
+### 4. Detener el entorno
 
-- Nicolás Ramos
-- Alberto Rivera
-- DuocUC — DSY1106 Desarrollo Fullstack III
+```bash
+docker compose down
+```
 
+---
+
+## Bases de datos
+
+El script `db/00-create-dbs.sh` crea automáticamente las tres bases de datos al primer inicio:
+
+| Base de datos | Microservicio |
+|---------------|---------------|
+| `usuario_db` | usuario |
+| `mascotas_db` | mascotas |
+| `reportes_db` | reportes |
+
+El script `db/20-restore-dumps.sh` restaura los dumps SQL desde `db/*.sql`.
+
+---
+
+## Puertos expuestos
+
+| Servicio | Puerto host |
+|----------|-------------|
+| API Gateway | 8080 |
+| Microservicio usuario | 8081 |
+| Microservicio mascotas | 8082 |
+| Microservicio reportes | 8083 |
+| FastAPI Matcher | 8000 |
+| PostgreSQL | 5433 |
+| Kafka | 9092 / 29092 |
+| Kafka UI | 8090 |
+| SonarQube | 9000 |
+
+---
+
+## Ejecutar un microservicio individualmente
+
+```bash
+cd mascotas   # o usuario / reportes / apigateway
+./mvnw clean spring-boot:run
+```
+
+---
+
+## Ejecutar tests
+
+```bash
+cd mascotas   # o usuario / reportes
+./mvnw test
+```
+
+---
+
+## Publicar imágenes a Docker Hub
+
+```bash
+bash build-push.sh
+```
+
+> Después de publicar nuevas imágenes, reiniciar los contenedores con `docker compose up -d` para que tomen los cambios.
+
+---
+
+## Análisis de calidad con SonarQube
+
+Una vez levantado el docker compose, acceder a `http://localhost:9000` con credenciales `admin / admin`.
+
+Los tres proyectos (`usuario`, `mascotas`, `reportes`) tienen Quality Gates configurados y pasan el análisis con cobertura de tests ≥ 80%.
+
+---
+
+## Estructura del repositorio
+
+```
+├── apigateway/           # Spring Cloud Gateway + JWT
+├── mascotas/             # Microservicio de mascotas
+├── reportes/             # Microservicio de reportes
+├── usuario/              # Microservicio de usuarios
+├── db/                   # Scripts SQL y dumps iniciales
+├── docker-compose.yml    # Entorno completo
+├── docker-compose.dev.yml
+├── build-push.sh         # Script de build y push a Docker Hub
+└── .env.example          # Plantilla de variables de entorno
+```
+
+---
+
+## Autores
+
+- **Nicolás Ramos** — [@Ykko115](https://github.com/Ykko115)
+- **Alberto Rivera**
+
+Instituto Profesional DUOC UC — Carrera FullStack, 2026.

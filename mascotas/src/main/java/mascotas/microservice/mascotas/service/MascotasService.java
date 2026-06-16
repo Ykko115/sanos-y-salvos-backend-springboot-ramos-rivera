@@ -10,10 +10,12 @@ public interface MascotasService {
     Mascotas crearMascota(Mascotas mascota);
     Optional<Mascotas> obtenerMascotaPorId(Long id);
     List<Mascotas> obtenerTodasLasMascotas();
+    List<Mascotas> obtenerMascotasPorEstado(Mascotas.Estado estado);
     Mascotas actualizarMascota(Long id, Mascotas mascota);
+    Mascotas actualizarEstado(Long id, Mascotas.Estado estado);
     void eliminarMascota(Long id);
     Optional<Mascotas> obtenerMascotaPorNombre(String nombre);
-    List<Mascotas> obtenerMascotasPorEspecie(String especie);
+    List<Mascotas> obtenerMascotasPorEspecie(Mascotas.Especie especie);
     List<Mascotas> obtenerMascotasPorRaza(String raza);
     List<Mascotas> obtenerMascotasPorUsuarioId(Long usuarioId);
 

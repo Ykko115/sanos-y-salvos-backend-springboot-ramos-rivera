@@ -40,7 +40,6 @@
             "mainClass": "com.microservice.reportes.ReportesApplication",
             "projectName": "reportes",
             "args": "",
-            "envFile": "${workspaceFolder}/.env"
         }
     ]
 }
